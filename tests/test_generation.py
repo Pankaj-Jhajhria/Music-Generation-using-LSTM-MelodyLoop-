@@ -30,6 +30,40 @@ def test_temperature_sampling():
     assert 0 <= sampled_high < 4
 
 
+def test_top_k_sampling():
+    logits = torch.tensor([10.0, 0.1, 0.2, 9.0, 0.05])
+    # With top_k=2, only indices 0 and 3 are allowed
+    for s in range(20):
+        sampled = sample_with_temperature(logits, temperature=1.0, top_k=2)
+        assert sampled in (0, 3)
+
+
+def test_seeded_phrase_continuation():
+    cfg = Config(hidden_dim=64, num_layers=1)
+    model = MelodyLSTM(cfg)
+    prompt = [
+        {"pitch": 60, "start": 0.0, "duration": 0.4, "step": 0.25},
+        {"pitch": 64, "start": 0.25, "duration": 0.4, "step": 0.25},
+    ]
+    notes = generate_melody(
+        model=model,
+        cfg=cfg,
+        num_notes=15,
+        temperature=0.6,
+        pitch_top_k=5,
+        seed=42,
+        seed_sequence=prompt,
+        device="cpu",
+    )
+    # Total notes = 2 prompt notes + 15 generated notes = 17
+    assert len(notes) == 17
+    assert notes[0]["is_seed"] is True
+    assert notes[1]["is_seed"] is True
+    assert notes[2]["is_seed"] is False
+    assert notes[0]["pitch"] == 60
+    assert notes[1]["pitch"] == 64
+
+
 def test_autoregressive_generation():
     cfg = Config(hidden_dim=64, num_layers=1)
     model = MelodyLSTM(cfg)

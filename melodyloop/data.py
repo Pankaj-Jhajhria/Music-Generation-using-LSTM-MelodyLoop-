@@ -201,6 +201,12 @@ def load_maestro_split(
     files_processed = 0
     files_skipped = 0
 
+    num_target_files = len(split_df)
+    max_per_file = None
+    if max_sequences is not None and num_target_files > 0:
+        # Cap sequences per piece so we sample broadly across different composers
+        max_per_file = max(80, int(np.ceil((max_sequences * 1.25) / num_target_files)))
+
     for _, row in split_df.iterrows():
         rel_path = row["midi_filename"]
         midi_path = base_dir / rel_path
@@ -213,11 +219,16 @@ def load_maestro_split(
         total_notes += len(events)
         xs, ys = create_sequences_from_events(events, cfg.seq_length, cfg.stride)
         if len(xs) > 0:
+            if max_per_file is not None and len(xs) > max_per_file:
+                # Evenly sample sequences across the performance
+                indices = np.linspace(0, len(xs) - 1, max_per_file, dtype=int)
+                xs = xs[indices]
+                ys = ys[indices]
             all_x.append(xs)
             all_y.append(ys)
 
         current_total = sum(len(x) for x in all_x)
-        if max_sequences is not None and current_total >= max_sequences:
+        if max_sequences is not None and current_total >= max_sequences and files_processed >= min(num_target_files, 25):
             break
 
     if all_x:

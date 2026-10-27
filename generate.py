@@ -10,6 +10,7 @@ import torch
 
 from config import Config
 from melodyloop.audio import synthesize_notes_to_wav
+from melodyloop.data import parse_midi_file, dequantize_duration, dequantize_step
 from melodyloop.generation import generate_melody, export_notes_to_midi
 from melodyloop.model import MelodyLSTM
 
@@ -17,9 +18,11 @@ from melodyloop.model import MelodyLSTM
 def main():
     parser = argparse.ArgumentParser(description="MelodyLoop Music Generation")
     parser.add_argument("--checkpoint", type=str, default=None, help="Path to model checkpoint .pt")
-    parser.add_argument("--length", type=int, default=100, help="Number of notes to generate")
-    parser.add_argument("--temperature", type=float, default=0.9, help="Sampling temperature")
+    parser.add_argument("--length", type=int, default=80, help="Number of notes to generate")
+    parser.add_argument("--temperature", type=float, default=0.6, help="Sampling temperature (default: 0.6)")
+    parser.add_argument("--top-k", type=int, default=5, help="Top-K candidate filtering (default: 5)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for generation")
+    parser.add_argument("--seed-midi", type=str, default=None, help="Path to MIDI file to use as prompt phrase")
     parser.add_argument("--output-midi", type=str, default=None, help="Path for generated MIDI")
     parser.add_argument("--output-wav", type=str, default=None, help="Path for generated WAV preview")
     parser.add_argument("--device", type=str, default=None, help="Device (cuda or cpu)")
@@ -54,21 +57,40 @@ def main():
     epoch = checkpoint.get("epoch", "unknown")
     val_loss = checkpoint.get("val_loss", "unknown")
     print(f"Model loaded: Epoch {epoch}, Val Loss: {val_loss}")
-    print(f"Generating {args.length} notes (temperature={args.temperature}, seed={args.seed})...")
+
+    seed_seq = None
+    if args.seed_midi:
+        sm_path = Path(args.seed_midi)
+        if sm_path.exists():
+            print(f"Loading prompt phrase from MIDI: {sm_path.name}")
+            events = parse_midi_file(sm_path, cfg)
+            seed_seq = []
+            curr_t = 0.0
+            for p, d, s in events[:32]:
+                dur = dequantize_duration(d, cfg)
+                step = dequantize_step(s, cfg)
+                seed_seq.append({"pitch": p, "start": curr_t, "duration": dur, "step": step})
+                curr_t += step
+            print(f"Extracted {len(seed_seq)} prompt notes for continuation.")
+
+    mode_label = "Seeded continuation" if seed_seq else "Free generation"
+    print(f"Generating {args.length} notes [{mode_label}] (temperature={args.temperature}, top_k={args.top_k}, seed={args.seed})...")
 
     notes = generate_melody(
         model=model,
         cfg=cfg,
         num_notes=args.length,
         temperature=args.temperature,
+        pitch_top_k=args.top_k,
         seed=args.seed,
+        seed_sequence=seed_seq,
         device=device_name,
     )
 
     out_midi = (
         Path(args.output_midi)
         if args.output_midi
-        else (cfg.generated_dir / f"melody_seed{args.seed}_temp{args.temperature}.mid")
+        else (cfg.generated_dir / f"melody_seed{args.seed}_temp{args.temperature}_topk{args.top_k}.mid")
     )
     export_notes_to_midi(notes, out_midi, bpm=cfg.tempo_bpm)
     print(f"Saved MIDI file -> {out_midi}")
@@ -76,7 +98,7 @@ def main():
     out_wav = (
         Path(args.output_wav)
         if args.output_wav
-        else (cfg.generated_dir / f"melody_seed{args.seed}_temp{args.temperature}.wav")
+        else (cfg.generated_dir / f"melody_seed{args.seed}_temp{args.temperature}_topk{args.top_k}.wav")
     )
     synthesize_notes_to_wav(notes, out_wav)
     print(f"Saved WAV preview -> {out_wav}")

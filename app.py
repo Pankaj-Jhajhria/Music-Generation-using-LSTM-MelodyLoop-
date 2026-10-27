@@ -44,7 +44,7 @@ def load_model_from_checkpoint(ckpt_path: Path, cfg: Config, device: str):
 
 
 def plot_piano_roll(notes: list[dict], title: str = "Piano-Roll Visualization"):
-    """Create a piano-roll scatter/bar plot of notes."""
+    """Create a piano-roll scatter/bar plot of notes with prompt vs continuation distinction."""
     fig, ax = plt.subplots(figsize=(10, 3.8), dpi=150)
     fig.patch.set_facecolor("#0e1117")
     ax.set_facecolor("#161b22")
@@ -53,19 +53,35 @@ def plot_piano_roll(notes: list[dict], title: str = "Piano-Roll Visualization"):
         ax.text(0.5, 0.5, "No notes available", color="#8b949e", ha="center", va="center")
         return fig
 
-    # Draw each note as a horizontal bar
+    seed_labeled = False
+    gen_labeled = False
+
     for n in notes:
         start = n["start"]
         dur = max(0.05, n["duration"])
         pitch = n["pitch"]
+        is_seed = n.get("is_seed", False)
+
+        if is_seed:
+            color = "#f0883e"
+            edgecolor = "#d97706"
+            label = "Real Prompt Phrase" if not seed_labeled else None
+            seed_labeled = True
+        else:
+            color = "#58a6ff"
+            edgecolor = "#1f6feb"
+            label = "LSTM Continuation" if not gen_labeled else None
+            gen_labeled = True
+
         ax.barh(
             y=pitch,
             width=dur,
             left=start,
             height=0.8,
-            color="#58a6ff",
-            edgecolor="#1f6feb",
-            alpha=0.85,
+            color=color,
+            edgecolor=edgecolor,
+            alpha=0.88,
+            label=label,
         )
 
     ax.set_title(title, color="#c9d1d9", fontsize=11, pad=10)
@@ -84,7 +100,7 @@ def plot_piano_roll(notes: list[dict], title: str = "Piano-Roll Visualization"):
     ax.set_xlim(0, max_time)
 
     # Reference Middle C (60)
-    ax.axhline(60, color="#f0883e", linestyle=":", alpha=0.5, label="Middle C (60)")
+    ax.axhline(60, color="#8b949e", linestyle=":", alpha=0.4, label="Middle C (60)")
     ax.legend(loc="upper right", facecolor="#161b22", edgecolor="#30363d", labelcolor="#c9d1d9", fontsize=8)
 
     plt.tight_layout()
@@ -202,23 +218,72 @@ def main():
     # -------------------------------------------------------------
     with tab_gen:
         st.subheader("🎼 Melody Generator")
-        col1, col2, col3 = st.columns(3)
+
+        mode = st.radio(
+            "Generation Mode:",
+            options=["🎼 Free Melody Generation", "🎹 Continue a Real Piano Phrase (Seeded Continuation)"],
+            horizontal=True,
+            help="Free generation starts from a classical chord cadence. Seeded continuation prompts the LSTM with a real phrase from MAESTRO and lets it predict the musical continuation.",
+        )
+
+        catalog = load_maestro_catalog(str(cfg.data_dir), cfg.csv_filename)
+        seed_prompt_notes = None
+
+        if mode == "🎹 Continue a Real Piano Phrase (Seeded Continuation)":
+            st.info("💡 **Seeded Continuation Mode:** The LSTM receives the opening bars of a real classical performance as prompt context and predicts the subsequent notes.")
+            p_col1, p_col2 = st.columns([2, 1])
+            with p_col1:
+                prompt_length = st.slider("Prompt Phrase Length (notes to provide as context)", min_value=12, max_value=32, value=20, step=4)
+            with p_col2:
+                st.write("")
+                st.write("")
+                pick_prompt_clicked = st.button("🎲 Pick Random Prompt Phrase", key="btn_pick_prompt")
+
+            if "continuation_prompt" not in st.session_state:
+                st.session_state.continuation_prompt = None
+
+            if (pick_prompt_clicked or st.session_state.continuation_prompt is None) and catalog:
+                chosen_p = random.choice(catalog)
+                midi_p = Path(chosen_p["path"])
+                raw_n = extract_clip_from_midi(midi_p, cfg, notes_count=prompt_length)
+                st.session_state.continuation_prompt = {
+                    "composer": chosen_p["composer"],
+                    "title": chosen_p["title"],
+                    "notes": raw_n,
+                }
+
+            if st.session_state.continuation_prompt:
+                cp = st.session_state.continuation_prompt
+                st.caption(f"🎼 **Active Prompt Phrase:** {cp['composer']} — *{cp['title']}* ({len(cp['notes'])} notes)")
+                seed_prompt_notes = cp["notes"][:prompt_length]
+
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
-            length = st.slider("Melody Length (number of notes)", min_value=20, max_value=200, value=80, step=10)
+            length = st.slider("Notes to Generate", min_value=20, max_value=150, value=60, step=10)
         with col2:
             temperature = st.slider(
                 "Sampling Temperature",
                 min_value=0.1,
-                max_value=1.5,
-                value=0.85,
+                max_value=1.3,
+                value=0.60,
                 step=0.05,
-                help="Higher = more exploratory/diverse; Lower = more conservative/repetitive.",
+                help="Controls diversity. 0.55–0.65 produces structured, cohesive melodic flow. Higher values (>0.9) increase randomness.",
             )
         with col3:
+            top_k = st.slider(
+                "Top-K Sampling",
+                min_value=1,
+                max_value=20,
+                value=5,
+                step=1,
+                help="Restricts sampling to the K most probable next notes. Filters out noisy and discordant tail notes.",
+            )
+        with col4:
             seed = st.number_input("Random Seed", min_value=0, max_value=99999, value=42, step=1)
 
-        gen_clicked = st.button("✨ Generate Melody", type="primary", disabled=not model_loaded, key="btn_gen")
+        btn_label = "✨ Generate Continuation" if mode.startswith("🎹") else "✨ Generate Melody"
+        gen_clicked = st.button(btn_label, type="primary", disabled=not model_loaded, key="btn_gen")
 
         if not model_loaded:
             st.info("Train a model or check checkpoints to enable the generator.")
@@ -236,7 +301,9 @@ def main():
                     cfg=cfg,
                     num_notes=length,
                     temperature=temperature,
+                    pitch_top_k=top_k,
                     seed=seed,
+                    seed_sequence=seed_prompt_notes,
                     device=device,
                 )
 
@@ -256,12 +323,21 @@ def main():
             notes = st.session_state.generated_notes
             total_time = notes[-1]["start"] + notes[-1]["duration"]
             pitches = [n["pitch"] for n in notes]
+            seed_count = sum(1 for n in notes if n.get("is_seed", False))
+            continuation_count = len(notes) - seed_count
+
+            # Calculate pitch jump metrics
+            jumps = [abs(pitches[i+1] - pitches[i]) for i in range(len(pitches)-1)]
+            avg_jump = sum(jumps) / max(1, len(jumps))
 
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Notes Generated", len(notes))
+            if seed_count > 0:
+                m1.metric("Notes (Prompt + Gen)", f"{seed_count} + {continuation_count}")
+            else:
+                m1.metric("Notes Generated", len(notes))
             m2.metric("Total Duration", f"{total_time:.1f} s")
-            m3.metric("Lowest Pitch", min(pitches))
-            m4.metric("Highest Pitch", max(pitches))
+            m3.metric("Pitch Range", f"{min(pitches)} - {max(pitches)}")
+            m4.metric("Avg Pitch Step", f"{avg_jump:.1f} semitones")
 
             st.subheader("🔊 Audio Preview")
             st.caption("Rendered using lightweight local harmonic synthesis.")

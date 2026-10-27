@@ -178,6 +178,7 @@ def main():
     parser.add_argument("--device", type=str, default=None, help="Device (cuda or cpu)")
     parser.add_argument("--resume", action="store_true", help="Resume from latest checkpoint")
     parser.add_argument("--smoke-test", action="store_true", help="Fast 1-epoch smoke test")
+    parser.add_argument("--patience", type=int, default=6, help="Early stopping patience (epochs without val improvement)")
     parser.add_argument("--log-file", type=str, default=None, help="Path to log file")
 
     args = parser.parse_args()
@@ -273,6 +274,7 @@ def main():
 
     start_epoch = 1
     best_val_loss = float("inf")
+    patience_counter = 0
 
     # Resume support
     if args.resume and cfg.latest_model_path.exists():
@@ -336,6 +338,7 @@ def main():
         # Check best
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            patience_counter = 0
             save_checkpoint(
                 cfg.best_model_path,
                 model,
@@ -347,6 +350,13 @@ def main():
                 cfg,
             )
             logger.info(f"* New best model achieved (val_loss: {best_val_loss:.4f}) -> {cfg.best_model_path.name}")
+        else:
+            patience_counter += 1
+            if patience_counter >= args.patience:
+                logger.info(
+                    f"\n! Early stopping triggered: Validation loss has not improved for {args.patience} consecutive epochs."
+                )
+                break
 
         logger.info("-" * 60)
         sys.stdout.flush()
