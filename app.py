@@ -1,18 +1,21 @@
 """
 MelodyLoop — Interactive Streamlit Web Application
 Demonstrates LSTM next-event music generation, piano-roll visualization,
-and local audio playback for educational presentation.
+local audio playback, and side-by-side comparison with the real MAESTRO dataset.
 """
 
 from pathlib import Path
+import random
 import time
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import streamlit as st
 import torch
 
 from config import Config
 from melodyloop.audio import synthesize_notes_to_wav
+from melodyloop.data import parse_midi_file, dequantize_duration, dequantize_step
 from melodyloop.generation import generate_melody, export_notes_to_midi
 from melodyloop.model import MelodyLSTM
 
@@ -40,14 +43,14 @@ def load_model_from_checkpoint(ckpt_path: Path, cfg: Config, device: str):
     return model, checkpoint
 
 
-def plot_piano_roll(notes: list[dict]):
-    """Create a piano-roll scatter/bar plot of generated notes."""
-    fig, ax = plt.subplots(figsize=(10, 4), dpi=150)
+def plot_piano_roll(notes: list[dict], title: str = "Piano-Roll Visualization"):
+    """Create a piano-roll scatter/bar plot of notes."""
+    fig, ax = plt.subplots(figsize=(10, 3.8), dpi=150)
     fig.patch.set_facecolor("#0e1117")
     ax.set_facecolor("#161b22")
 
     if not notes:
-        ax.text(0.5, 0.5, "No notes generated yet", color="#8b949e", ha="center", va="center")
+        ax.text(0.5, 0.5, "No notes available", color="#8b949e", ha="center", va="center")
         return fig
 
     # Draw each note as a horizontal bar
@@ -65,12 +68,13 @@ def plot_piano_roll(notes: list[dict]):
             alpha=0.85,
         )
 
-    ax.set_xlabel("Time (seconds)", color="#c9d1d9", fontsize=11)
-    ax.set_ylabel("MIDI Pitch (0-127)", color="#c9d1d9", fontsize=11)
+    ax.set_title(title, color="#c9d1d9", fontsize=11, pad=10)
+    ax.set_xlabel("Time (seconds)", color="#c9d1d9", fontsize=10)
+    ax.set_ylabel("MIDI Pitch (0-127)", color="#c9d1d9", fontsize=10)
     ax.tick_params(colors="#8b949e")
     ax.grid(True, linestyle="--", alpha=0.2, color="#8b949e")
 
-    # Set reasonable pitch bounds around active notes
+    # Set pitch bounds
     pitches = [n["pitch"] for n in notes]
     min_p = max(0, min(pitches) - 3)
     max_p = min(127, max(pitches) + 3)
@@ -79,12 +83,56 @@ def plot_piano_roll(notes: list[dict]):
     max_time = max(n["start"] + n["duration"] for n in notes) + 0.5
     ax.set_xlim(0, max_time)
 
-    # Note references (Middle C = 60)
-    ax.axhline(60, color="#f0883e", linestyle=":", alpha=0.5, label="Middle C (C4 = 60)")
-    ax.legend(loc="upper right", facecolor="#161b22", edgecolor="#30363d", labelcolor="#c9d1d9", fontsize=9)
+    # Reference Middle C (60)
+    ax.axhline(60, color="#f0883e", linestyle=":", alpha=0.5, label="Middle C (60)")
+    ax.legend(loc="upper right", facecolor="#161b22", edgecolor="#30363d", labelcolor="#c9d1d9", fontsize=8)
 
     plt.tight_layout()
     return fig
+
+
+@st.cache_data
+def load_maestro_catalog(data_dir_str: str, csv_filename: str):
+    """Cache MAESTRO metadata catalog for quick sampling."""
+    csv_path = Path(data_dir_str) / csv_filename
+    if not csv_path.exists():
+        return []
+    df = pd.read_csv(csv_path)
+    pieces = []
+    for _, row in df.iterrows():
+        p = Path(data_dir_str) / row["midi_filename"]
+        if p.exists():
+            pieces.append({
+                "composer": row.get("canonical_composer", "Unknown"),
+                "title": row.get("canonical_title", "Unknown Piece"),
+                "year": str(row.get("year", "N/A")),
+                "split": str(row.get("split", "N/A")),
+                "midi_filename": row["midi_filename"],
+                "path": str(p),
+            })
+    return pieces
+
+
+def extract_clip_from_midi(midi_path: Path, cfg: Config, notes_count: int = 80):
+    """Extract and dequantize first N notes from a MIDI file into standard note dicts."""
+    events = parse_midi_file(midi_path, cfg)
+    if not events:
+        return []
+
+    notes = []
+    current_time = 0.0
+    for p_idx, d_idx, s_idx in events[:notes_count]:
+        dur = dequantize_duration(d_idx, cfg)
+        step = dequantize_step(s_idx, cfg)
+        notes.append({
+            "pitch": p_idx,
+            "start": current_time,
+            "duration": dur,
+            "step": step,
+        })
+        current_time += step
+
+    return notes
 
 
 def main():
@@ -146,99 +194,236 @@ def main():
             """
         )
 
-    # Generation controls
-    st.subheader("🎼 Melody Generator")
-    col1, col2, col3 = st.columns(3)
+    # Top-level Tabs
+    tab_gen, tab_compare = st.tabs(["🎼 LSTM Melody Generator", "🎹 Human vs LSTM Comparison"])
 
-    with col1:
-        length = st.slider("Melody Length (number of notes)", min_value=20, max_value=200, value=80, step=10)
-    with col2:
-        temperature = st.slider(
-            "Sampling Temperature",
-            min_value=0.1,
-            max_value=1.5,
-            value=0.85,
-            step=0.05,
-            help="Higher = more exploratory/diverse; Lower = more conservative/repetitive.",
+    # -------------------------------------------------------------
+    # TAB 1: LSTM Melody Generator
+    # -------------------------------------------------------------
+    with tab_gen:
+        st.subheader("🎼 Melody Generator")
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            length = st.slider("Melody Length (number of notes)", min_value=20, max_value=200, value=80, step=10)
+        with col2:
+            temperature = st.slider(
+                "Sampling Temperature",
+                min_value=0.1,
+                max_value=1.5,
+                value=0.85,
+                step=0.05,
+                help="Higher = more exploratory/diverse; Lower = more conservative/repetitive.",
+            )
+        with col3:
+            seed = st.number_input("Random Seed", min_value=0, max_value=99999, value=42, step=1)
+
+        gen_clicked = st.button("✨ Generate Melody", type="primary", disabled=not model_loaded, key="btn_gen")
+
+        if not model_loaded:
+            st.info("Train a model or check checkpoints to enable the generator.")
+
+        # State storage for generated music
+        if "generated_notes" not in st.session_state:
+            st.session_state.generated_notes = None
+            st.session_state.midi_bytes = None
+            st.session_state.wav_bytes = None
+
+        if gen_clicked and model_loaded:
+            with st.spinner("Generating autoregressive note sequence..."):
+                notes = generate_melody(
+                    model=model,
+                    cfg=cfg,
+                    num_notes=length,
+                    temperature=temperature,
+                    seed=seed,
+                    device=device,
+                )
+
+                timestamp = int(time.time())
+                midi_path = cfg.generated_dir / f"generated_{timestamp}.mid"
+                wav_path = cfg.generated_dir / f"generated_{timestamp}.wav"
+
+                export_notes_to_midi(notes, midi_path, bpm=cfg.tempo_bpm)
+                synthesize_notes_to_wav(notes, wav_path)
+
+                st.session_state.generated_notes = notes
+                st.session_state.midi_bytes = midi_path.read_bytes()
+                st.session_state.wav_bytes = wav_path.read_bytes()
+                st.success(f"Generated {len(notes)} notes successfully!")
+
+        if st.session_state.generated_notes:
+            notes = st.session_state.generated_notes
+            total_time = notes[-1]["start"] + notes[-1]["duration"]
+            pitches = [n["pitch"] for n in notes]
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Notes Generated", len(notes))
+            m2.metric("Total Duration", f"{total_time:.1f} s")
+            m3.metric("Lowest Pitch", min(pitches))
+            m4.metric("Highest Pitch", max(pitches))
+
+            st.subheader("🔊 Audio Preview")
+            st.caption("Rendered using lightweight local harmonic synthesis.")
+            if st.session_state.wav_bytes:
+                st.audio(st.session_state.wav_bytes, format="audio/wav")
+
+            d1, d2 = st.columns(2)
+            with d1:
+                st.download_button(
+                    label="⬇️ Download Standard MIDI (.mid)",
+                    data=st.session_state.midi_bytes,
+                    file_name="melodyloop_generated.mid",
+                    mime="audio/midi",
+                    key="dl_midi_gen",
+                )
+            with d2:
+                st.download_button(
+                    label="⬇️ Download Audio (.wav)",
+                    data=st.session_state.wav_bytes,
+                    file_name="melodyloop_preview.wav",
+                    mime="audio/wav",
+                    key="dl_wav_gen",
+                )
+
+            st.subheader("🎹 Piano-Roll Visualization")
+            fig = plot_piano_roll(notes, title="LSTM Generated Melody")
+            st.pyplot(fig)
+
+    # -------------------------------------------------------------
+    # TAB 2: Compare Human Dataset vs LSTM Generator
+    # -------------------------------------------------------------
+    with tab_compare:
+        st.subheader("🎹 Compare Real Dataset Music vs LSTM Generated Music")
+        st.markdown(
+            """
+            Compare human piano performances from the **MAESTRO dataset** directly against the 
+            **LSTM-generated music**. Both are rendered using the identical harmonic synthesis engine 
+            for a fair, 1:1 auditory and visual comparison.
+            """
         )
-    with col3:
-        seed = st.number_input("Random Seed", min_value=0, max_value=99999, value=42, step=1)
 
-    gen_clicked = st.button("✨ Generate Melody", type="primary", disabled=not model_loaded)
+        catalog = load_maestro_catalog(str(cfg.data_dir), cfg.csv_filename)
 
-    if not model_loaded:
-        st.info("Train a model or start background training to enable the generator.")
-
-    # State storage for generated music
-    if "generated_notes" not in st.session_state:
-        st.session_state.generated_notes = None
-        st.session_state.midi_bytes = None
-        st.session_state.wav_bytes = None
-
-    if gen_clicked and model_loaded:
-        with st.spinner("Generating autoregressive note sequence..."):
-            notes = generate_melody(
-                model=model,
-                cfg=cfg,
-                num_notes=length,
-                temperature=temperature,
-                seed=seed,
-                device=device,
+        col_c1, col_c2, col_c3 = st.columns([2, 1, 1])
+        with col_c1:
+            split_choice = st.selectbox(
+                "Filter by Dataset Split:",
+                options=["Any Split", "train", "validation", "test"],
+                index=0,
             )
+        with col_c2:
+            comp_notes_count = st.slider("Note Clip Length:", min_value=30, max_value=150, value=80, step=10)
+        with col_c3:
+            st.write("")
+            st.write("")
+            pick_random_clicked = st.button("🎲 Pick Random Real Performance", type="primary")
 
-            # Export to disk and memory
-            timestamp = int(time.time())
-            midi_path = cfg.generated_dir / f"generated_{timestamp}.mid"
-            wav_path = cfg.generated_dir / f"generated_{timestamp}.wav"
+        if "dataset_sample" not in st.session_state:
+            st.session_state.dataset_sample = None
 
-            export_notes_to_midi(notes, midi_path, bpm=cfg.tempo_bpm)
-            synthesize_notes_to_wav(notes, wav_path)
+        if pick_random_clicked and catalog:
+            matching = catalog
+            if split_choice != "Any Split":
+                matching = [p for p in catalog if p["split"].lower() == split_choice.lower()]
 
-            st.session_state.generated_notes = notes
-            st.session_state.midi_bytes = midi_path.read_bytes()
-            st.session_state.wav_bytes = wav_path.read_bytes()
-            st.success(f"Generated {len(notes)} notes successfully!")
+            if not matching:
+                st.warning(f"No pieces found for split '{split_choice}'.")
+            else:
+                chosen = random.choice(matching)
+                with st.spinner(f"Extracting & synthesizing excerpt from {chosen['title']}..."):
+                    midi_p = Path(chosen["path"])
+                    raw_notes = extract_clip_from_midi(midi_p, cfg, notes_count=comp_notes_count)
 
-    # Display results if available
-    if st.session_state.generated_notes:
-        notes = st.session_state.generated_notes
-        total_time = notes[-1]["start"] + notes[-1]["duration"]
-        pitches = [n["pitch"] for n in notes]
+                    if raw_notes:
+                        out_sample_wav = cfg.generated_dir / "app_dataset_sample.wav"
+                        synthesize_notes_to_wav(raw_notes, out_sample_wav)
 
-        # Metric summary row
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Notes Generated", len(notes))
-        m2.metric("Total Duration", f"{total_time:.1f} s")
-        m3.metric("Lowest Pitch", min(pitches))
-        m4.metric("Highest Pitch", max(pitches))
+                        st.session_state.dataset_sample = {
+                            "composer": chosen["composer"],
+                            "title": chosen["title"],
+                            "year": chosen["year"],
+                            "split": chosen["split"],
+                            "notes": raw_notes,
+                            "wav_bytes": out_sample_wav.read_bytes(),
+                            "midi_bytes": midi_p.read_bytes(),
+                            "filename": midi_p.name,
+                        }
+                        st.success(f"Loaded: {chosen['composer']} — {chosen['title']}")
 
-        # Audio playback
-        st.subheader("🔊 Audio Preview")
-        st.caption("Rendered using lightweight local harmonic synthesis.")
-        if st.session_state.wav_bytes:
-            st.audio(st.session_state.wav_bytes, format="audio/wav")
+        # Side-by-side comparison view
+        col_human, col_lstm = st.columns(2)
 
-        # Download buttons
-        d1, d2 = st.columns(2)
-        with d1:
-            st.download_button(
-                label="⬇️ Download Standard MIDI (.mid)",
-                data=st.session_state.midi_bytes,
-                file_name="melodyloop_generated.mid",
-                mime="audio/midi",
-            )
-        with d2:
-            st.download_button(
-                label="⬇️ Download Audio (.wav)",
-                data=st.session_state.wav_bytes,
-                file_name="melodyloop_preview.wav",
-                mime="audio/wav",
-            )
+        with col_human:
+            st.markdown("### 🎼 1. Real Human Performance (MAESTRO)")
+            if st.session_state.dataset_sample:
+                ds = st.session_state.dataset_sample
+                st.info(f"**Composer:** {ds['composer']}\n\n**Piece:** {ds['title']} ({ds['year']}) | *Split: {ds['split']}*")
+                
+                pitches_h = [n["pitch"] for n in ds["notes"]]
+                dur_h = ds["notes"][-1]["start"] + ds["notes"][-1]["duration"]
+                
+                m1, m2 = st.columns(2)
+                m1.metric("Human Notes", len(ds["notes"]))
+                m2.metric("Duration", f"{dur_h:.1f} s")
 
-        # Piano roll plot
-        st.subheader("🎹 Piano-Roll Visualization")
-        fig = plot_piano_roll(notes)
-        st.pyplot(fig)
+                st.write("**🔊 Audio Playback (Human Performance Clip):**")
+                st.audio(ds["wav_bytes"], format="audio/wav")
+
+                st.download_button(
+                    label="⬇️ Download Real Sample WAV",
+                    data=ds["wav_bytes"],
+                    file_name="maestro_human_sample.wav",
+                    mime="audio/wav",
+                    key="dl_human_wav",
+                )
+
+                fig_h = plot_piano_roll(ds["notes"], title=f"Real Performance: {ds['composer']} - {ds['title'][:25]}")
+                st.pyplot(fig_h)
+            else:
+                st.info("Click **'🎲 Pick Random Real Performance'** above to load a real performance clip from MAESTRO.")
+
+        with col_lstm:
+            st.markdown("### 🤖 2. LSTM Generated Composition")
+            if st.session_state.generated_notes and st.session_state.wav_bytes:
+                notes_gen = st.session_state.generated_notes
+                pitches_l = [n["pitch"] for n in notes_gen]
+                dur_l = notes_gen[-1]["start"] + notes_gen[-1]["duration"]
+
+                st.success("**Source:** MelodyLSTM Checkpoint (`best_model.pt`)\n\n*Learned next-note prediction from scratch*")
+
+                m1, m2 = st.columns(2)
+                m1.metric("LSTM Notes", len(notes_gen))
+                m2.metric("Duration", f"{dur_l:.1f} s")
+
+                st.write("**🔊 Audio Playback (LSTM Model Output):**")
+                st.audio(st.session_state.wav_bytes, format="audio/wav")
+
+                st.download_button(
+                    label="⬇️ Download LSTM Generated WAV",
+                    data=st.session_state.wav_bytes,
+                    file_name="lstm_generated_sample.wav",
+                    mime="audio/wav",
+                    key="dl_lstm_wav",
+                )
+
+                fig_l = plot_piano_roll(notes_gen, title="LSTM Generated Melody")
+                st.pyplot(fig_l)
+            else:
+                st.info("Generate a melody in Tab 1 first to display it here side-by-side.")
+
+        # Educational takeaway table
+        st.markdown("---")
+        st.subheader("🔍 Educational Comparison & Discussion")
+        st.markdown(
+            """
+            | Feature | Human Performance (MAESTRO Dataset) | LSTM Generated Output (`MelodyLoop`) |
+            |---|---|---|
+            | **Pitch Variety & Range** | Spans 5–7 octaves with complex polyphony, arpeggios, and chord progressions. | Stays within a focused melodic register (2–3 octaves), maintaining musical center of gravity. |
+            | **Timing & Rhythm** | Natural *rubato* (subtle human tempo fluctuations, expressive dynamic phrasing). | Quantized time steps with clear beat division, learning consistent note groupings. |
+            | **Structural Coherence** | Long-range exposition, key changes, and thematic motifs spanning minutes. | Short-term sequential transitions (~15–30 notes), learning authentic note-to-note transitions. |
+            """
+        )
 
 
 if __name__ == "__main__":
