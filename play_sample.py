@@ -15,7 +15,7 @@ import pandas as pd
 
 from config import Config
 from melodyloop.audio import synthesize_notes_to_wav
-from melodyloop.data import parse_midi_file
+from melodyloop.data import parse_midi_file, dequantize_duration, dequantize_step
 
 # Windows native sound player
 try:
@@ -98,19 +98,26 @@ def play_random_dataset_sample(cfg: Config, notes_count: int = 80, split: str = 
 
     # Parse notes from original MIDI
     print(f"Extracting first {notes_count} notes...")
-    notes = parse_midi_file(midi_path, cfg)
-    if not notes:
+    events = parse_midi_file(midi_path, cfg)
+    if not events:
         print("Warning: Could not parse notes from selected file, picking another...")
         return play_random_dataset_sample(cfg, notes_count, split)
 
-    notes_clip = notes[:notes_count]
-    # Re-normalize start times to start at 0.0s
-    if notes_clip:
-        first_start = notes_clip[0]["start"]
-        for n in notes_clip:
-            n["start"] = max(0.0, n["start"] - first_start)
+    # Convert quantized (pitch, dur_idx, step_idx) tuples to playable note dicts
+    notes_clip = []
+    current_time = 0.0
+    for p_idx, d_idx, s_idx in events[:notes_count]:
+        dur = dequantize_duration(d_idx, cfg)
+        step = dequantize_step(s_idx, cfg)
+        notes_clip.append({
+            "pitch": p_idx,
+            "start": current_time,
+            "duration": dur,
+            "step": step,
+        })
+        current_time += step
 
-    duration = notes_clip[-1]["start"] + notes_clip[-1]["duration"]
+    duration = notes_clip[-1]["start"] + notes_clip[-1]["duration"] if notes_clip else 0.0
     print(f"Synthesizing {len(notes_clip)} notes ({duration:.1f}s) with MelodyLoop harmonic engine...")
 
     out_wav = cfg.generated_dir / "dataset_sample.wav"
