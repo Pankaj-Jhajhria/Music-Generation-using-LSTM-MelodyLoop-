@@ -4,6 +4,7 @@ Handles MIDI parsing, tokenization, quantization, and sequence generation.
 """
 
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict, Any
@@ -139,8 +140,8 @@ def create_sequences_from_events(
     """
     if len(events) <= seq_length:
         return (
-            np.empty((0, seq_length, 3), dtype=np.int64),
-            np.empty((0, 3), dtype=np.int64),
+            np.empty((0, seq_length, 3), dtype=np.uint8),
+            np.empty((0, 3), dtype=np.uint8),
         )
 
     xs = []
@@ -149,29 +150,50 @@ def create_sequences_from_events(
         xs.append(events[i : i + seq_length])
         ys.append(events[i + seq_length])
 
-    return np.array(xs, dtype=np.int64), np.array(ys, dtype=np.int64)
+    return np.array(xs, dtype=np.uint8), np.array(ys, dtype=np.uint8)
 
 
 class MelodyDataset(Dataset):
-    """PyTorch Dataset for MelodyLoop sequences."""
+    """
+    PyTorch Dataset for MelodyLoop sequences.
+    Stores arrays as compact uint8 tensors in RAM (8x memory reduction),
+    returning torch.long tensors on __getitem__ for neural layer compatibility.
+    """
 
-    def __init__(self, sequences: np.ndarray, targets: np.ndarray):
+    def __init__(self, sequences: np.ndarray | torch.Tensor, targets: np.ndarray | torch.Tensor):
         super().__init__()
-        self.x = torch.from_numpy(sequences).long()  # (N, seq_len, 3)
-        self.y_pitch = torch.from_numpy(targets[:, 0]).long()
-        self.y_duration = torch.from_numpy(targets[:, 1]).long()
-        self.y_step = torch.from_numpy(targets[:, 2]).long()
+        if isinstance(sequences, torch.Tensor):
+            self.x = sequences.to(torch.uint8)
+        else:
+            self.x = torch.from_numpy(np.asarray(sequences, dtype=np.uint8))
+
+        if isinstance(targets, torch.Tensor):
+            self.y_pitch = targets[:, 0].to(torch.uint8)
+            self.y_duration = targets[:, 1].to(torch.uint8)
+            self.y_step = targets[:, 2].to(torch.uint8)
+        else:
+            targets_np = np.asarray(targets, dtype=np.uint8)
+            self.y_pitch = torch.from_numpy(targets_np[:, 0])
+            self.y_duration = torch.from_numpy(targets_np[:, 1])
+            self.y_step = torch.from_numpy(targets_np[:, 2])
 
     def __len__(self) -> int:
         return len(self.x)
 
     def __getitem__(self, idx: int):
         return {
-            "x": self.x[idx],
-            "pitch": self.y_pitch[idx],
-            "duration": self.y_duration[idx],
-            "step": self.y_step[idx],
+            "x": self.x[idx].long(),
+            "pitch": self.y_pitch[idx].long(),
+            "duration": self.y_duration[idx].long(),
+            "step": self.y_step[idx].long(),
         }
+
+
+def _worker_parse_midi(args: Tuple[str, Config]) -> Tuple[str, List[Tuple[int, int, int]]]:
+    """Helper worker for multi-process parsing."""
+    filepath_str, cfg = args
+    ev = parse_midi_file(filepath_str, cfg)
+    return filepath_str, ev
 
 
 def load_maestro_split(
@@ -179,10 +201,15 @@ def load_maestro_split(
     cfg: Config,
     max_files: Optional[int] = None,
     max_sequences: Optional[int] = None,
+    use_cache: bool = True,
 ) -> Tuple[MelodyDataset, Dict[str, Any]]:
     """
     Load and preprocess MAESTRO split according to configuration limits.
-    Returns dataset and summary statistics.
+    Supports:
+      - Processing ALL available split performances (when max_files is None or <= 0).
+      - Persistent disk caching of parsed note events in artifacts/cache/ for instant loading.
+      - Balanced sequence sampling across all eligible performances.
+      - Compact uint8 storage to protect laptop RAM.
     """
     csv_path = cfg.csv_path
     if not csv_path.exists():
@@ -194,52 +221,98 @@ def load_maestro_split(
     if max_files is not None and max_files > 0:
         split_df = split_df.head(max_files)
 
+    num_target_files = len(split_df)
     base_dir = cfg.data_dir
-    all_x = []
-    all_y = []
+    cache_path = cfg.cache_dir / f"maestro_{split_name}_events_cache.npz"
+
+    # Step 1: Ingest or compute parsed events dictionary {rel_path: np.ndarray(N, 3)}
+    events_by_file: Dict[str, np.ndarray] = {}
+    cache_loaded = False
+
+    if use_cache and cache_path.exists():
+        try:
+            logger.info(f"Loading cached note events from {cache_path.name}...")
+            with np.load(cache_path) as cached:
+                events_by_file = {k: cached[k] for k in cached.files}
+            cache_loaded = True
+            logger.info(f"Loaded {len(events_by_file)} performances from event cache.")
+        except Exception as e:
+            logger.warning(f"Could not load event cache ({e}), re-parsing...")
+
+    # Identify files that need parsing
+    target_rel_paths = list(split_df["midi_filename"])
+    missing_paths = [p for p in target_rel_paths if p not in events_by_file]
+
+    if missing_paths:
+        logger.info(f"Parsing {len(missing_paths)} MIDI files for split '{split_name}'...")
+        abs_paths = [str(base_dir / p) for p in missing_paths]
+
+        # Use fast sequential or parallel parsing
+        import concurrent.futures
+        workers = min(6, os.cpu_count() or 4) if len(missing_paths) >= 10 else 1
+
+        if workers > 1:
+            worker_args = [(p, cfg) for p in abs_paths]
+            with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
+                for rel_p, (_, ev) in zip(missing_paths, executor.map(_worker_parse_midi, worker_args)):
+                    if ev:
+                        events_by_file[rel_p] = np.array(ev, dtype=np.uint8)
+        else:
+            for rel_p, abs_p in zip(missing_paths, abs_paths):
+                ev = parse_midi_file(abs_p, cfg)
+                if ev:
+                    events_by_file[rel_p] = np.array(ev, dtype=np.uint8)
+
+        # Update cache file on disk
+        if use_cache and events_by_file:
+            try:
+                cfg.cache_dir.mkdir(parents=True, exist_ok=True)
+                np.savez_compressed(cache_path, **events_by_file)
+                logger.info(f"Saved {len(events_by_file)} performances to cache -> {cache_path.name}")
+            except Exception as e:
+                logger.warning(f"Failed to save cache file: {e}")
+
+    # Step 2: Build sequences from all eligible files with proportional balancing
+    all_x: List[np.ndarray] = []
+    all_y: List[np.ndarray] = []
     total_notes = 0
     files_processed = 0
     files_skipped = 0
 
-    num_target_files = len(split_df)
+    valid_files_count = sum(1 for p in target_rel_paths if p in events_by_file and len(events_by_file[p]) > cfg.seq_length)
     max_per_file = None
-    if max_sequences is not None and num_target_files > 0:
-        # Cap sequences per piece so we sample broadly across different composers
-        max_per_file = max(80, int(np.ceil((max_sequences * 1.25) / num_target_files)))
+    if max_sequences is not None and max_sequences > 0 and valid_files_count > 0:
+        # Distribute sequence budget across ALL valid target files proportionally
+        max_per_file = max(16, int(np.ceil((max_sequences * 1.10) / valid_files_count)))
 
-    for _, row in split_df.iterrows():
-        rel_path = row["midi_filename"]
-        midi_path = base_dir / rel_path
-        events = parse_midi_file(midi_path, cfg)
-        if not events:
+    for rel_path in target_rel_paths:
+        events_arr = events_by_file.get(rel_path)
+        if events_arr is None or len(events_arr) <= cfg.seq_length:
             files_skipped += 1
             continue
 
         files_processed += 1
-        total_notes += len(events)
-        xs, ys = create_sequences_from_events(events, cfg.seq_length, cfg.stride)
+        total_notes += len(events_arr)
+
+        xs, ys = create_sequences_from_events(events_arr, cfg.seq_length, cfg.stride)
         if len(xs) > 0:
             if max_per_file is not None and len(xs) > max_per_file:
-                # Evenly sample sequences across the performance
+                # Evenly sample sequences across the full performance
                 indices = np.linspace(0, len(xs) - 1, max_per_file, dtype=int)
                 xs = xs[indices]
                 ys = ys[indices]
             all_x.append(xs)
             all_y.append(ys)
 
-        current_total = sum(len(x) for x in all_x)
-        if max_sequences is not None and current_total >= max_sequences and files_processed >= min(num_target_files, 25):
-            break
-
     if all_x:
         combined_x = np.concatenate(all_x, axis=0)
         combined_y = np.concatenate(all_y, axis=0)
-        if max_sequences is not None and len(combined_x) > max_sequences:
+        if max_sequences is not None and max_sequences > 0 and len(combined_x) > max_sequences:
             combined_x = combined_x[:max_sequences]
             combined_y = combined_y[:max_sequences]
     else:
-        combined_x = np.empty((0, cfg.seq_length, 3), dtype=np.int64)
-        combined_y = np.empty((0, 3), dtype=np.int64)
+        combined_x = np.empty((0, cfg.seq_length, 3), dtype=np.uint8)
+        combined_y = np.empty((0, 3), dtype=np.uint8)
 
     stats = {
         "split": split_name,

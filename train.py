@@ -180,10 +180,21 @@ def main():
     parser.add_argument("--smoke-test", action="store_true", help="Fast 1-epoch smoke test")
     parser.add_argument("--patience", type=int, default=6, help="Early stopping patience (epochs without val improvement)")
     parser.add_argument("--log-file", type=str, default=None, help="Path to log file")
+    parser.add_argument("--best-checkpoint", type=str, default=None, help="Path to save best checkpoint")
+    parser.add_argument("--latest-checkpoint", type=str, default=None, help="Path to save latest checkpoint")
+    parser.add_argument("--no-alias", action="store_true", help="Do not mirror to best_model.pt")
 
     args = parser.parse_args()
 
     cfg = Config()
+    if args.smoke_test:
+        cfg.epochs = 1
+        cfg.max_train_files = 2
+        cfg.max_val_files = 1
+        cfg.max_train_sequences = 128
+        cfg.max_val_sequences = 32
+        cfg.batch_size = 16
+
     if args.epochs is not None:
         cfg.epochs = args.epochs
     if args.batch_size is not None:
@@ -199,15 +210,10 @@ def main():
     if args.device is not None:
         cfg.device = args.device
 
-    if args.smoke_test:
-        cfg.epochs = 1
-        cfg.max_train_files = 2
-        cfg.max_val_files = 1
-        cfg.max_train_sequences = 128
-        cfg.max_val_sequences = 32
-        cfg.batch_size = 16
+    best_ckpt_path = Path(args.best_checkpoint) if args.best_checkpoint else (cfg.artifacts_dir / "checkpoints" / "best_model_expanded.pt")
+    latest_ckpt_path = Path(args.latest_checkpoint) if args.latest_checkpoint else (cfg.artifacts_dir / "checkpoints" / "latest_model_expanded.pt")
 
-    log_path = Path(args.log_file) if args.log_file else (cfg.logs_dir / "training.log")
+    log_path = Path(args.log_file) if args.log_file else (cfg.logs_dir / "training_expanded.log")
     logger = setup_logger(log_path)
 
     torch.manual_seed(cfg.seed)
@@ -277,9 +283,10 @@ def main():
     patience_counter = 0
 
     # Resume support
-    if args.resume and cfg.latest_model_path.exists():
-        logger.info(f"Found checkpoint at {cfg.latest_model_path}. Resuming...")
-        ckpt = torch.load(str(cfg.latest_model_path), map_location=device)
+    resume_target = latest_ckpt_path if latest_ckpt_path.exists() else (cfg.latest_model_path if cfg.latest_model_path.exists() else None)
+    if args.resume and resume_target is not None:
+        logger.info(f"Found checkpoint at {resume_target}. Resuming...")
+        ckpt = torch.load(str(resume_target), map_location=device)
         model.load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
         start_epoch = ckpt["epoch"] + 1
@@ -324,7 +331,7 @@ def main():
 
         # Always save latest
         save_checkpoint(
-            cfg.latest_model_path,
+            latest_ckpt_path,
             model,
             optimizer,
             epoch,
@@ -333,14 +340,9 @@ def main():
             val_metrics,
             cfg,
         )
-        logger.info(f"Saved checkpoint -> {cfg.latest_model_path.name}")
-
-        # Check best
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            patience_counter = 0
+        if not args.no_alias and latest_ckpt_path != cfg.latest_model_path:
             save_checkpoint(
-                cfg.best_model_path,
+                cfg.latest_model_path,
                 model,
                 optimizer,
                 epoch,
@@ -349,7 +351,34 @@ def main():
                 val_metrics,
                 cfg,
             )
-            logger.info(f"* New best model achieved (val_loss: {best_val_loss:.4f}) -> {cfg.best_model_path.name}")
+        logger.info(f"Saved checkpoint -> {latest_ckpt_path.name}")
+
+        # Check best
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience_counter = 0
+            save_checkpoint(
+                best_ckpt_path,
+                model,
+                optimizer,
+                epoch,
+                train_loss,
+                val_loss,
+                val_metrics,
+                cfg,
+            )
+            if not args.no_alias and best_ckpt_path != cfg.best_model_path:
+                save_checkpoint(
+                    cfg.best_model_path,
+                    model,
+                    optimizer,
+                    epoch,
+                    train_loss,
+                    val_loss,
+                    val_metrics,
+                    cfg,
+                )
+            logger.info(f"* New best model achieved (val_loss: {best_val_loss:.4f}) -> {best_ckpt_path.name}")
         else:
             patience_counter += 1
             if patience_counter >= args.patience:
@@ -363,7 +392,7 @@ def main():
 
     logger.info("Training loop completed successfully.")
     logger.info(f"Best Validation Loss: {best_val_loss:.4f}")
-    logger.info(f"Final checkpoint location: {cfg.best_model_path}")
+    logger.info(f"Final checkpoint location: {best_ckpt_path}")
 
 
 if __name__ == "__main__":

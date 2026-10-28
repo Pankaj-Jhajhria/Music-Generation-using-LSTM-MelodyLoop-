@@ -171,7 +171,32 @@ def main():
     if device == "cuda":
         st.sidebar.caption(f"GPU: {torch.cuda.get_device_name(0)}")
 
-    ckpt_path = cfg.best_model_path if cfg.best_model_path.exists() else cfg.latest_model_path
+    # Discover available checkpoints
+    available_ckpts = {}
+    expanded_path = cfg.artifacts_dir / "checkpoints" / "best_model_expanded.pt"
+    baseline_path = cfg.artifacts_dir / "checkpoints" / "best_model_v1_baseline.pt"
+    default_best = cfg.best_model_path
+
+    if expanded_path.exists():
+        available_ckpts["Expanded Model (v2: 962 Pieces, 100k Seqs)"] = expanded_path
+    if default_best.exists() and default_best not in available_ckpts.values():
+        available_ckpts[f"Current Best ({default_best.name})"] = default_best
+    if baseline_path.exists():
+        available_ckpts["Baseline Model (v1: 13 Pieces, 15k Seqs)"] = baseline_path
+    if cfg.latest_model_path.exists() and cfg.latest_model_path not in available_ckpts.values():
+        available_ckpts[f"Latest Checkpoint ({cfg.latest_model_path.name})"] = cfg.latest_model_path
+
+    if available_ckpts:
+        selected_model_name = st.sidebar.selectbox(
+            "Model Checkpoint",
+            options=list(available_ckpts.keys()),
+            index=0,
+            help="Select between the baseline model and the expanded dataset model to hear the difference.",
+        )
+        ckpt_path = available_ckpts[selected_model_name]
+    else:
+        ckpt_path = cfg.best_model_path
+
     model_loaded = False
     model = None
     ckpt_data = None
@@ -181,10 +206,13 @@ def main():
         if model is not None:
             model_loaded = True
             st.sidebar.success(f"✓ Checkpoint Active: `{ckpt_path.name}`")
-            st.sidebar.metric("Trained Epoch", ckpt_data.get("epoch", "N/A"))
-            val_loss = ckpt_data.get("val_loss", None)
-            if val_loss is not None:
-                st.sidebar.metric("Validation Loss", f"{val_loss:.4f}")
+            col_ep, col_loss = st.sidebar.columns(2)
+            with col_ep:
+                st.metric("Trained Epoch", ckpt_data.get("epoch", "N/A"))
+            with col_loss:
+                val_loss = ckpt_data.get("val_loss", None)
+                if val_loss is not None:
+                    st.metric("Val Loss", f"{val_loss:.4f}")
             st.sidebar.caption(f"Parameters: {model.count_parameters():,}")
     else:
         st.sidebar.warning("⚠️ No trained checkpoint found.")

@@ -7,6 +7,7 @@ import os
 import torch
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
 
 
 def get_base_dir() -> Path:
@@ -50,6 +51,7 @@ class Config:
     checkpoints_dir: Path = field(default_factory=lambda: get_base_dir() / "artifacts" / "checkpoints")
     generated_dir: Path = field(default_factory=lambda: get_base_dir() / "artifacts" / "generated")
     logs_dir: Path = field(default_factory=lambda: get_base_dir() / "artifacts" / "logs")
+    cache_dir: Path = field(default_factory=lambda: get_base_dir() / "artifacts" / "cache")
     
     # Quantization / Representation
     pitch_vocab_size: int = 128       # Standard MIDI pitches 0-127
@@ -71,15 +73,15 @@ class Config:
     # Data & Sequences
     seq_length: int = 32              # Number of note events per input sequence
     stride: int = 4                   # Stride when sliding window over notes
-    max_train_files: int = 25         # Bounded sample of MAESTRO train performances
-    max_val_files: int = 5            # Bounded sample of MAESTRO val performances
-    max_train_sequences: int = 40000  # Cap total sequences to respect RAM (bounds memory)
-    max_val_sequences: int = 5000
+    max_train_files: Optional[int] = None       # None means process all available training performances (962)
+    max_val_files: Optional[int] = None         # None means process all available validation performances (137)
+    max_train_sequences: Optional[int] = 100000 # Bounded expanded sequence budget (respects RAM/GPU throughput)
+    max_val_sequences: Optional[int] = 10000    # Expanded validation sequence budget
     
     # Training
     device: str = field(default_factory=detect_device)
     batch_size: int = 32 if torch.cuda.is_available() else 16
-    epochs: int = 6 if torch.cuda.is_available() else 3
+    epochs: int = 20 if torch.cuda.is_available() else 5
     learning_rate: float = 1e-3
     weight_decay: float = 1e-5
     seed: int = 42
@@ -87,7 +89,7 @@ class Config:
     
     # Generation defaults
     default_gen_length: int = 100
-    default_temperature: float = 0.9
+    default_temperature: float = 0.6
     tempo_bpm: int = 120
     
     def __post_init__(self):
@@ -96,6 +98,7 @@ class Config:
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
         self.generated_dir.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
         
     @property
     def csv_path(self) -> Path:
@@ -108,3 +111,11 @@ class Config:
     @property
     def latest_model_path(self) -> Path:
         return self.checkpoints_dir / "latest_model.pt"
+
+    @property
+    def baseline_model_path(self) -> Path:
+        return self.checkpoints_dir / "best_model_v1_baseline.pt"
+
+    @property
+    def expanded_model_path(self) -> Path:
+        return self.checkpoints_dir / "best_model_expanded.pt"
