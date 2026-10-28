@@ -20,6 +20,8 @@ def find_maestro_dir() -> Path:
     candidates = [
         base / "data_maestrov3.0.0-midi" / "maestro-v3.0.0",
         base / "data_maestrov3.0.0-midi",
+        base / "data_maestro3.0.0-midi",
+        base / "data_samples",
         base / "maestro-v3.0.0",
     ]
     for c in candidates:
@@ -30,7 +32,7 @@ def find_maestro_dir() -> Path:
     for p in base.glob("**/maestro-v3.0.0.csv"):
         return p.parent
         
-    return base / "data_maestrov3.0.0-midi" / "maestro-v3.0.0"
+    return base / "data_samples"
 
 
 def detect_device() -> str:

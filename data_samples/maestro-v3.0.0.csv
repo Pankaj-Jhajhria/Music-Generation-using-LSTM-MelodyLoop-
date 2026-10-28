@@ -1,0 +1,6 @@
+canonical_composer,canonical_title,split,year,midi_filename,audio_filename,duration
+Frédéric Chopin,"12 Etudes, Op. 25",train,2004,2004/MIDI-Unprocessed_SMF_05_R1_2004_01_ORIG_MID--AUDIO_05_R1_2004_02_Track02_wav.midi,2004/MIDI-Unprocessed_SMF_05_R1_2004_01_ORIG_MID--AUDIO_05_R1_2004_02_Track02_wav.wav,1409.28857763
+Ludwig van Beethoven,"15 Variations and Fugue in Eb on an Original Theme ('Eroica Variations'), Op.35",validation,2004,2004/MIDI-Unprocessed_SMF_13_01_2004_01-05_ORIG_MID--AUDIO_13_R1_2004_05_Track05_wav.midi,2004/MIDI-Unprocessed_SMF_13_01_2004_01-05_ORIG_MID--AUDIO_13_R1_2004_05_Track05_wav.wav,1402.55462314
+Franz Schubert,"""Der Mueller und der Bach""",validation,2009,2009/MIDI-Unprocessed_08_R1_2009_01-04_ORIG_MID--AUDIO_08_R1_2009_08_R1_2009_02_WAV.midi,2009/MIDI-Unprocessed_08_R1_2009_01-04_ORIG_MID--AUDIO_08_R1_2009_08_R1_2009_02_WAV.wav,336.379204219
+Johann Sebastian Bach,"Chromatic Fantasy and Fugue in D Minor, BWV 903",train,2018,2018/MIDI-Unprocessed_Recital17-19_MID--AUDIO_19_R1_2018_wav--1.midi,2018/MIDI-Unprocessed_Recital17-19_MID--AUDIO_19_R1_2018_wav--1.wav,636.456361406
+Alexander Scriabin,"24 Preludes Op. 11, No. 13-24",train,2004,2004/MIDI-Unprocessed_XP_21_R1_2004_01_ORIG_MID--AUDIO_21_R1_2004_01_Track01_wav.midi,2004/MIDI-Unprocessed_XP_21_R1_2004_01_ORIG_MID--AUDIO_21_R1_2004_01_Track01_wav.wav,872.640588096

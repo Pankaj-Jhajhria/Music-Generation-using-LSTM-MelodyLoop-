@@ -1,10 +1,13 @@
-# Datasets
-data_maestrov3.0.0-midi/
-data/
-*.midi
-*.mid
+# ==============================================================================
+# MelodyLoop .gitignore — Streamlit Cloud & GitHub Deployment
+# ==============================================================================
 
-# Python
+# Datasets (Full 1GB+ MAESTRO dataset is local only)
+data_maestrov3.0.0-midi/
+data_maestro3.0.0-midi/
+data/
+
+# Python & Virtual Environments
 __pycache__/
 *.py[cod]
 *$py.class
@@ -25,21 +28,12 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Virtual environments
 venv/
 .venv/
 env/
 .env/
 ENV/
-
-# Artifacts, models, checkpoints, logs, generated files
-artifacts/
-*.pth
-*.pt
-*.ckpt
-*.log
-*.wav
+.pytest_cache/
 
 # IDE & OS
 .vscode/
@@ -48,3 +42,35 @@ artifacts/
 *.swo
 .DS_Store
 Thumbs.db
+~$*.pptx
+~$*.docx
+
+# Dynamic runtime audio & video outputs
+*.wav
+*.mp3
+*.mp4
+*.webp
+
+# Temporary artifacts & training caches
+artifacts/cache/
+artifacts/logs/
+artifacts/slide_renders/
+artifacts/generated/
+
+# Keep Model Checkpoints for Streamlit Deployment
+!artifacts/
+!artifacts/checkpoints/
+!artifacts/checkpoints/best_model.pt
+!artifacts/checkpoints/best_model_expanded.pt
+!artifacts/checkpoints/best_model_v1_baseline.pt
+!artifacts/checkpoints/latest_model.pt
+!artifacts/checkpoints/latest_model_expanded.pt
+!artifacts/checkpoints/latest_model_v1_baseline.pt
+
+# Keep Presentation & Document Visual Assets
+!artifacts/presentation_assets/
+!artifacts/presentation_assets/**
+
+# Keep Bundled Sample Pieces for Streamlit Cloud
+!data_samples/
+!data_samples/**
