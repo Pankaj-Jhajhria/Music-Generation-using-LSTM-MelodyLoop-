@@ -3,6 +3,7 @@
 > **Project:** MelodyLoop — LSTM Music Generation  
 > **Repository:** `https://github.com/Pankaj-Jhajhria/Music-Generation-using-LSTM-MelodyLoop-`  
 > **Audience:** Academic Faculty Evaluation Panel & Technical Defense  
+> **Theme:** Professional Academic Light/White Presentation Deck  
 > **Scope:** 17-Slide Technical Walkthrough (In-depth oral presentation scripts, architectural proofs, and anticipated viva defense questions).
 
 ---

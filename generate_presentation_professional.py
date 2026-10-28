@@ -1,9 +1,9 @@
 """
 Generate MelodyLoop_Presentation_Professional.pptx
-Professional Academic Slide Deck (17 Slides)
+Professional Academic Slide Deck (17 Slides) — Light/White Theme
 - 16:9 Widescreen layout
-- High-contrast academic dark theme
-- Pure white headings and text in place of low-contrast blue
+- Clean, publication-grade academic white theme
+- High-contrast obsidian/charcoal typography on crisp light cards
 - Clean header banner with slide title (Chapter numbers and slide page numbers removed)
 - Proportional typography sized to fill content cards comfortably with high legibility
 - Full embedded presenter speaker notes on every slide
@@ -12,23 +12,26 @@ Professional Academic Slide Deck (17 Slides)
 from pathlib import Path
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 
 # ==============================================================================
-# Palette & Constants
+# Palette & Constants — Professional Academic Light/White Theme
 # ==============================================================================
-NAVY_BG      = RGBColor(11, 16, 32)       # #0B1020 Deep Navy Background
-CARD_BG      = RGBColor(21, 29, 54)       # #151D36 Card Surface
-CARD_BORDER  = RGBColor(42, 59, 106)      # #2A3B6A Card Border
-CYAN_ACCENT  = RGBColor(38, 217, 241)     # #26D9F1 High-contrast Data Flow Cyan
-GOLD_ACCENT  = RGBColor(255, 200, 87)     # #FFC857 Training & Highlights Gold
-CORAL_ACCENT = RGBColor(255, 107, 107)    # #FF6B6B Alert & Limitation Coral
-GREEN_ACCENT = RGBColor(34, 197, 94)      # #22C55E Success Green
-IVORY_TEXT   = RGBColor(255, 255, 255)    # #FFFFFF Pure White Primary Text
-MUTED_TEXT   = RGBColor(226, 232, 240)    # #E2E8F0 Bright Slate Text (High Contrast)
-ROYAL_BLUE   = RGBColor(255, 255, 255)    # Pure White (Replaced Blue as requested)
+WHITE_BG     = RGBColor(255, 255, 255)    # #FFFFFF Pure White Background
+CARD_BG      = RGBColor(248, 250, 252)    # #F8FAFC Subtle Slate-50 Card Surface
+CARD_BORDER  = RGBColor(203, 213, 225)    # #CBD5E1 Slate-300 Card Border
+TITLE_TEXT   = RGBColor(15, 23, 42)       # #0F172A Slate-900 Obsidian Charcoal
+BODY_TEXT    = RGBColor(30, 41, 59)       # #1E293B Slate-800 High-Contrast Body
+MUTED_TEXT   = RGBColor(71, 85, 105)      # #475569 Slate-600 Secondary Text
+FOOTER_TEXT  = RGBColor(100, 116, 139)    # #64748B Slate-500 Footer Text
+
+# Academic Accent Colors
+BLUE_ACCENT  = RGBColor(2, 132, 199)      # #0284C7 Sky-600 Primary Accent
+NAVY_ACCENT  = RGBColor(30, 64, 175)      # #1E40AF Blue-800 Deep Academic Blue
+GOLD_ACCENT  = RGBColor(217, 119, 6)      # #D97706 Amber-600 Gold Accent
+CORAL_ACCENT = RGBColor(220, 38, 38)      # #DC2626 Red-600 Warning Accent
+GREEN_ACCENT = RGBColor(22, 163, 74)      # #16A34A Green-600 Success Accent
 
 FONT_NAME = "Segoe UI"
 FONT_TITLE = "Segoe UI"
@@ -49,7 +52,7 @@ class SlideDeckBuilder:
         self.blank_layout = self.prs.slide_layouts[6]
         self.all_notes = []
 
-    def set_background(self, slide, color=NAVY_BG):
+    def set_background(self, slide, color=WHITE_BG):
         bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
         bg.fill.solid()
         bg.fill.fore_color.rgb = color
@@ -57,13 +60,13 @@ class SlideDeckBuilder:
         return bg
 
     def add_header(self, slide, title: str):
-        # Header accent bar line
+        # Header accent line
         line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(0.45), Inches(11.733), Inches(0.04))
         line.fill.solid()
-        line.fill.fore_color.rgb = CYAN_ACCENT
+        line.fill.fore_color.rgb = BLUE_ACCENT
         line.line.fill.background()
 
-        # Prominent Slide Title (Chapter tag and page numbers completely removed as requested)
+        # Prominent Slide Title (Chapter tag and page numbers completely removed)
         t_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.58), Inches(11.733), Inches(0.72))
         tf_t = t_box.text_frame
         tf_t.word_wrap = True
@@ -73,7 +76,7 @@ class SlideDeckBuilder:
         p_t.font.name = FONT_TITLE
         p_t.font.size = Pt(26)
         p_t.font.bold = True
-        p_t.font.color.rgb = IVORY_TEXT
+        p_t.font.color.rgb = TITLE_TEXT
 
         # Clean Academic Footer
         f_box = slide.shapes.add_textbox(Inches(0.8), Inches(7.10), Inches(11.733), Inches(0.3))
@@ -83,7 +86,7 @@ class SlideDeckBuilder:
         p_f.text = "MelodyLoop — LSTM Music Generation | Academic Project Defense & Evaluation"
         p_f.font.name = FONT_NAME
         p_f.font.size = Pt(9.5)
-        p_f.font.color.rgb = MUTED_TEXT
+        p_f.font.color.rgb = FOOTER_TEXT
 
     def add_card(self, slide, left, top, width, height, bg_color=CARD_BG, border_color=CARD_BORDER):
         card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(left), Inches(top), Inches(width), Inches(height))
@@ -93,7 +96,7 @@ class SlideDeckBuilder:
         card.line.width = Pt(1.2)
         return card
 
-    def add_metric_chip(self, slide, left, top, width, height, value: str, label: str, val_color=CYAN_ACCENT):
+    def add_metric_chip(self, slide, left, top, width, height, value: str, label: str, val_color=BLUE_ACCENT):
         self.add_card(slide, left, top, width, height)
         box = slide.shapes.add_textbox(Inches(left + 0.1), Inches(top + 0.10), Inches(width - 0.2), Inches(height - 0.20))
         tf = box.text_frame
@@ -137,7 +140,7 @@ def build_deck():
 
     bar = s1.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(1.6), Inches(0.12), Inches(4.2))
     bar.fill.solid()
-    bar.fill.fore_color.rgb = CYAN_ACCENT
+    bar.fill.fore_color.rgb = BLUE_ACCENT
     bar.line.fill.background()
 
     tbox = s1.shapes.add_textbox(Inches(1.2), Inches(1.5), Inches(11.0), Inches(2.6))
@@ -148,13 +151,13 @@ def build_deck():
     p1.font.name = FONT_TITLE
     p1.font.size = Pt(50)
     p1.font.bold = True
-    p1.font.color.rgb = IVORY_TEXT
+    p1.font.color.rgb = TITLE_TEXT
 
     p2 = tf1.add_paragraph()
     p2.text = "LSTM-Based Sequential Piano Music Generation"
     p2.font.name = FONT_TITLE
     p2.font.size = Pt(26)
-    p2.font.color.rgb = CYAN_ACCENT
+    p2.font.color.rgb = BLUE_ACCENT
     p2.font.bold = True
     p2.space_before = Pt(8)
 
@@ -166,9 +169,9 @@ def build_deck():
     p3.space_before = Pt(12)
 
     highlights = [
-        ("962 Pieces", "MAESTRO v3.0 Corpus", CYAN_ACCENT),
+        ("962 Pieces", "MAESTRO v3.0 Corpus", BLUE_ACCENT),
         ("5.66M Notes", "Chronological Events", GOLD_ACCENT),
-        ("167k Params", "Multi-Head LSTM", ROYAL_BLUE),
+        ("167k Params", "Multi-Head LSTM", NAVY_ACCENT),
         ("Val: 5.9151", "Epoch 7 Best Checkpoint", GREEN_ACCENT),
     ]
     for idx, (val, lbl, col) in enumerate(highlights):
@@ -180,7 +183,8 @@ def build_deck():
     p_m1.text = "Academic Project Defense | NLP & Deep Sequence Modeling | PyTorch Implementation"
     p_m1.font.name = FONT_NAME
     p_m1.font.size = Pt(12.5)
-    p_m1.font.color.rgb = IVORY_TEXT
+    p_m1.font.bold = True
+    p_m1.font.color.rgb = TITLE_TEXT
 
     p_m2 = tf_m.add_paragraph()
     p_m2.text = "Repository: https://github.com/Pankaj-Jhajhria/Music-Generation-using-LSTM-MelodyLoop-"
@@ -220,7 +224,7 @@ def build_deck():
     p.text = "THE SEQUENCE MODELING PROBLEM"
     p.font.size = Pt(16)
     p.font.bold = True
-    p.font.color.rgb = CYAN_ACCENT
+    p.font.color.rgb = BLUE_ACCENT
 
     items_l = [
         ("Temporal Musical Dependencies:", " Piano music consists of chronologically ordered note onsets. A note's harmonic and rhythmic meaning depends strictly on prior musical context."),
@@ -234,11 +238,11 @@ def build_deck():
         r1 = p_i.add_run()
         r1.text = "• " + title
         r1.font.bold = True
-        r1.font.color.rgb = IVORY_TEXT
+        r1.font.color.rgb = TITLE_TEXT
         r1.font.size = Pt(13.5)
         r2 = p_i.add_run()
         r2.text = desc
-        r2.font.color.rgb = MUTED_TEXT
+        r2.font.color.rgb = BODY_TEXT
         r2.font.size = Pt(13)
 
     # Right Column: Engineering Contributions Card
@@ -265,11 +269,11 @@ def build_deck():
         run1 = p_t.add_run()
         run1.text = "✓ " + title
         run1.font.bold = True
-        run1.font.color.rgb = IVORY_TEXT
+        run1.font.color.rgb = TITLE_TEXT
         run1.font.size = Pt(13.5)
         run2 = p_t.add_run()
         run2.text = desc
-        run2.font.color.rgb = MUTED_TEXT
+        run2.font.color.rgb = BODY_TEXT
         run2.font.size = Pt(13)
 
     builder.attach_notes(s2, 2, "Problem Formulation & Objectives",
@@ -293,8 +297,8 @@ def build_deck():
     s3.shapes.add_picture(str(img_path), Inches(0.8), Inches(1.45), Inches(11.733), Inches(3.6))
 
     modules = [
-        ("Phase 1: Ingestion & Quantization", "melodyloop/data.py", "Parses raw MIDI via mido, enforces official train/val/test splits, quantizes continuous timing into 32 bins, builds sliding windows, and caches compact uint8 tensors.", CYAN_ACCENT),
-        ("Phase 2: Recurrent Training", "melodyloop/model.py & train.py", "Passes sequence (B, 32, 3) through parallel embeddings, a 128-d LSTM, and 3 linear heads. Optimizes joint cross-entropy loss with Adam (lr=1e-3).", ROYAL_BLUE),
+        ("Phase 1: Ingestion & Quantization", "melodyloop/data.py", "Parses raw MIDI via mido, enforces official train/val/test splits, quantizes continuous timing into 32 bins, builds sliding windows, and caches compact uint8 tensors.", BLUE_ACCENT),
+        ("Phase 2: Recurrent Training", "melodyloop/model.py & train.py", "Passes sequence (B, 32, 3) through parallel embeddings, a 128-d LSTM, and 3 linear heads. Optimizes joint cross-entropy loss with Adam (lr=1e-3).", NAVY_ACCENT),
         ("Phase 3: Generation & Synthesis", "melodyloop/generation.py & audio.py", "Autoregressively rolls out sequences using temperature & Top-K sampling. Decodes tokens into MIDI and renders audio via additive harmonic synthesis.", GOLD_ACCENT)
     ]
     for idx, (m_title, m_file, m_desc, col) in enumerate(modules):
@@ -312,14 +316,14 @@ def build_deck():
         p_f = tf.add_paragraph()
         p_f.text = f"Module: {m_file}"
         p_f.font.size = Pt(12)
-        p_f.font.color.rgb = IVORY_TEXT
+        p_f.font.color.rgb = TITLE_TEXT
         p_f.font.bold = True
         p_f.space_before = Pt(3)
 
         p_d = tf.add_paragraph()
         p_d.text = m_desc
         p_d.font.size = Pt(11.5)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(4)
 
     builder.attach_notes(s3, 3, "Complete End-to-End Workflow",
@@ -345,9 +349,9 @@ def build_deck():
     s4.shapes.add_picture(str(img_path), Inches(0.8), Inches(1.45), Inches(11.733), Inches(3.2))
 
     cards = [
-        ("The 128 MIDI Pitch Standard", "MIDI note numbers span integers [0, 127].\nStandard 88-key acoustic pianos cover A0 (MIDI 21, 27.5 Hz) to C8 (MIDI 108, 4186 Hz). Middle C is defined as MIDI 60 (C4, 261.63 Hz). Concert A is MIDI 69 (A4, 440.0 Hz).", CYAN_ACCENT),
+        ("The 128 MIDI Pitch Standard", "MIDI note numbers span integers [0, 127].\nStandard 88-key acoustic pianos cover A0 (MIDI 21, 27.5 Hz) to C8 (MIDI 108, 4186 Hz). Middle C is defined as MIDI 60 (C4, 261.63 Hz). Concert A is MIDI 69 (A4, 440.0 Hz).", BLUE_ACCENT),
         ("The 3-Tuple Event Structure", "Every note event in MelodyLoop is represented by:\n• Pitch p ∈ [0, 127] (Discrete MIDI pitch)\n• Duration d ∈ [0, 31] (Sustained ring time)\n• Step s ∈ [0, 31] (Interval to next note onset)\nEnables polyphonic overlap and natural pacing.", GOLD_ACCENT),
-        ("Mathematical Frequency Formula", "Continuous frequency in Hertz is calculated by:\n    f = 440.0 × 2^((p - 69) / 12)\nEqual temperament divides each octave into 12 logarithmic semitones. A semitone increase multiplies frequency by 2^(1/12) ≈ 1.05946.", ROYAL_BLUE)
+        ("Mathematical Frequency Formula", "Continuous frequency in Hertz is calculated by:\n    f = 440.0 × 2^((p - 69) / 12)\nEqual temperament divides each octave into 12 logarithmic semitones. A semitone increase multiplies frequency by 2^(1/12) ≈ 1.05946.", TITLE_TEXT)
     ]
     for idx, (c_title, c_desc, col) in enumerate(cards):
         builder.add_card(s4, 0.8 + idx * 4.0, 4.85, 3.733, 2.1)
@@ -364,7 +368,7 @@ def build_deck():
         p_d = tf.add_paragraph()
         p_d.text = c_desc
         p_d.font.size = Pt(12.5)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(6)
 
     builder.attach_notes(s4, 4, "Keyboard to MIDI Representation",
@@ -391,7 +395,7 @@ def build_deck():
 
     col_w = 3.733
     cards_data = [
-        ("1. Symbolic MIDI (.mid)", "• Representation: Event metadata (pitch, time, velocity)\n• Data Volume: Compact (~1–5 KB per minute)\n• Content: Musical intent / sheet performance score\n• Network Role: High-efficiency target for discrete sequence modeling and token embeddings.", CYAN_ACCENT),
+        ("1. Symbolic MIDI (.mid)", "• Representation: Event metadata (pitch, time, velocity)\n• Data Volume: Compact (~1–5 KB per minute)\n• Content: Musical intent / sheet performance score\n• Network Role: High-efficiency target for discrete sequence modeling and token embeddings.", BLUE_ACCENT),
         ("2. Synthesized Waveform (.wav)", "• Representation: 44,100 continuous 16-bit PCM samples/s\n• Data Volume: Heavy (~10.5 MB per minute uncompressed)\n• Content: Acoustic pressure waves in air\n• Network Role: Rendered downstream via additive synthesis (melodyloop/audio.py).", GOLD_ACCENT),
         ("3. Compressed Audio (.mp3)", "• Representation: Psychoacoustic MDCT frequency lossy bins\n• Data Volume: Compact stream (~1 MB per minute at 128 kbps)\n• Content: Perceptually masked audio stream\n• Network Role: Consumer delivery format; unsuitable for token-level neural sequence modeling.", CORAL_ACCENT)
     ]
@@ -410,7 +414,7 @@ def build_deck():
         p_d = tf.add_paragraph()
         p_d.text = c_desc
         p_d.font.size = Pt(12)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(6)
 
     builder.attach_notes(s5, 5, "Symbolic MIDI vs. Continuous Audio",
@@ -435,9 +439,9 @@ def build_deck():
     s6.shapes.add_picture(str(img_path), Inches(0.8), Inches(1.45), Inches(11.733), Inches(3.3))
 
     cards = [
-        ("Yamaha Disklavier Performances", "MAESTRO v3.0.0 contains 1,276 performances (200 hours) captured live from the International Piano-e-Competition.\nYamaha Disklavier concert grand pianos recorded note onsets and releases with millisecond accuracy, capturing virtuosic human expressive nuance.", CYAN_ACCENT),
+        ("Yamaha Disklavier Performances", "MAESTRO v3.0.0 contains 1,276 performances (200 hours) captured live from the International Piano-e-Competition.\nYamaha Disklavier concert grand pianos recorded note onsets and releases with millisecond accuracy, capturing virtuosic human expressive nuance.", BLUE_ACCENT),
         ("Discovered Metadata Distribution", "Catalogued across 10 years of international competition:\n• 962 Training Performances (75.4%)\n• 137 Validation Performances (10.7%)\n• 177 Held-out Test Performances (13.9%)\nIncludes Chopin, Beethoven, Liszt, Bach, and Scriabin.", GOLD_ACCENT),
-        ("Zero Data Leakage Protocol", "Rigorous split isolation is strictly maintained in config.py:\n• Parameter updates: Computed exclusively on 962 train files.\n• Early stopping: Monitored on 137 validation files (no gradients).\n• Final benchmark: Conducted on held-out test split (e.g. Scriabin Op. 63).", ROYAL_BLUE)
+        ("Zero Data Leakage Protocol", "Rigorous split isolation is strictly maintained in config.py:\n• Parameter updates: Computed exclusively on 962 train files.\n• Early stopping: Monitored on 137 validation files (no gradients).\n• Final benchmark: Conducted on held-out test split (e.g. Scriabin Op. 63).", TITLE_TEXT)
     ]
     for idx, (c_title, c_desc, col) in enumerate(cards):
         builder.add_card(s6, 0.8 + idx * 4.0, 4.95, 3.733, 2.0)
@@ -454,7 +458,7 @@ def build_deck():
         p_d = tf.add_paragraph()
         p_d.text = c_desc
         p_d.font.size = Pt(12)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(6)
 
     builder.attach_notes(s6, 6, "The MAESTRO Dataset",
@@ -506,12 +510,12 @@ def build_deck():
         r1.text = lbl + " "
         r1.font.bold = True
         r1.font.size = Pt(12)
-        r1.font.color.rgb = IVORY_TEXT
+        r1.font.color.rgb = TITLE_TEXT
         r2 = p_line.add_run()
         r2.text = val
         r2.font.size = Pt(12.5)
         r2.font.bold = True
-        r2.font.color.rgb = CYAN_ACCENT
+        r2.font.color.rgb = BLUE_ACCENT
 
     builder.add_card(s7, 0.8, 4.95, 11.733, 2.0)
     box_b = s7.shapes.add_textbox(Inches(1.05), Inches(5.05), Inches(11.233), Inches(1.8))
@@ -522,7 +526,7 @@ def build_deck():
     p.text = "DIAGNOSIS & RESOLUTION OF THE ORIGINAL 13-PERFORMANCE BOTTLENECK"
     p.font.size = Pt(15)
     p.font.bold = True
-    p.font.color.rgb = CYAN_ACCENT
+    p.font.color.rgb = BLUE_ACCENT
 
     bullets = [
         "Root Cause in data.py: The original pipeline hit a hard-coded break statement (if current_total >= 15000: break) on file #13, terminating loop execution and discarding the remaining 949 training performances.",
@@ -534,7 +538,7 @@ def build_deck():
         p_b.space_before = Pt(6)
         p_b.text = "• " + b
         p_b.font.size = Pt(12)
-        p_b.font.color.rgb = MUTED_TEXT
+        p_b.font.color.rgb = BODY_TEXT
 
     builder.attach_notes(s7, 7, "Corpus Scaling & Bottleneck Diagnosis",
         "SLIDE CONCEPT:\n"
@@ -557,8 +561,8 @@ def build_deck():
 
     step_w = 2.78
     steps_data = [
-        ("Step 1: mido Parsing", "Raw MIDI Bytes", "Reads binary MIDI via mido, parses note_on / note_off channel events, tracks cumulative delta times, and filters non-piano tracks.", CYAN_ACCENT),
-        ("Step 2: Event Pairing", "Note Lifecycles", "Matches each note_on with its corresponding note_off to compute exact continuous start time (t_start) and duration (t_dur = t_off - t_on).", ROYAL_BLUE),
+        ("Step 1: mido Parsing", "Raw MIDI Bytes", "Reads binary MIDI via mido, parses note_on / note_off channel events, tracks cumulative delta times, and filters non-piano tracks.", BLUE_ACCENT),
+        ("Step 2: Event Pairing", "Note Lifecycles", "Matches each note_on with its corresponding note_off to compute exact continuous start time (t_start) and duration (t_dur = t_off - t_on).", TITLE_TEXT),
         ("Step 3: Step Interval", "Temporal Dynamics", "Sorts all notes chronologically and computes step time: s_i = max(0.0, start_(i+1) - start_i). Chords produce step = 0.0s.", GOLD_ACCENT),
         ("Step 4: Bin Quantization", "Discrete Tokens", "Maps continuous duration into 32 logarithmic/linear bins [0.05s, 4.0s] and step into 32 bins [0.0s, 2.0s]. Pitch is 0–127.", GREEN_ACCENT),
     ]
@@ -578,13 +582,13 @@ def build_deck():
         p_s.text = sub
         p_s.font.size = Pt(12.5)
         p_s.font.bold = True
-        p_s.font.color.rgb = IVORY_TEXT
+        p_s.font.color.rgb = TITLE_TEXT
         p_s.space_before = Pt(3)
 
         p_d = tf.add_paragraph()
         p_d.text = desc
         p_d.font.size = Pt(12)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(6)
 
     builder.add_card(s8, 0.8, 4.35, 11.733, 2.6)
@@ -596,7 +600,7 @@ def build_deck():
     p.text = "MATHEMATICAL QUANTIZATION FORMULATION & CONCRETE WORKED EXAMPLE"
     p.font.size = Pt(15)
     p.font.bold = True
-    p.font.color.rgb = CYAN_ACCENT
+    p.font.color.rgb = BLUE_ACCENT
 
     math_desc = (
         "Quantization Formula: bin = min(max(int(((clip(v, min_v, max_v) - min_v) / (max_v - min_v)) × (N - 1) + 0.5), 0), N - 1)\n"
@@ -609,7 +613,7 @@ def build_deck():
     p_m.space_before = Pt(8)
     p_m.text = math_desc
     p_m.font.size = Pt(12.5)
-    p_m.font.color.rgb = MUTED_TEXT
+    p_m.font.color.rgb = BODY_TEXT
 
     builder.attach_notes(s8, 8, "Data Preprocessing & Quantization",
         "SLIDE CONCEPT:\n"
@@ -638,7 +642,7 @@ def build_deck():
     p.text = "SLIDING-WINDOW SUPERVISED LEARNING FORMULATION"
     p.font.size = Pt(15)
     p.font.bold = True
-    p.font.color.rgb = CYAN_ACCENT
+    p.font.color.rgb = BLUE_ACCENT
 
     p_desc = tf_w.add_paragraph()
     p_desc.space_before = Pt(8)
@@ -650,7 +654,7 @@ def build_deck():
         "The model is trained strictly in a teacher-forcing framework: predicting the 33rd event given the ground-truth previous 32 events."
     )
     p_desc.font.size = Pt(13)
-    p_desc.font.color.rgb = MUTED_TEXT
+    p_desc.font.color.rgb = BODY_TEXT
 
     p_vis = tf_w.add_paragraph()
     p_vis.space_before = Pt(8)
@@ -682,11 +686,11 @@ def build_deck():
         r1.text = "• " + lbl + " "
         r1.font.bold = True
         r1.font.size = Pt(12.5)
-        r1.font.color.rgb = IVORY_TEXT
+        r1.font.color.rgb = TITLE_TEXT
         r2 = p_i.add_run()
         r2.text = desc
         r2.font.size = Pt(12)
-        r2.font.color.rgb = MUTED_TEXT
+        r2.font.color.rgb = BODY_TEXT
 
     builder.add_card(s9, 6.8, 4.35, 5.7, 2.6)
     b_a = s9.shapes.add_textbox(Inches(7.05), Inches(4.5), Inches(5.2), Inches(2.3))
@@ -696,7 +700,7 @@ def build_deck():
     p.text = "TEMPORAL ALIGNMENT & DATA INTEGRITY"
     p.font.size = Pt(15)
     p.font.bold = True
-    p.font.color.rgb = ROYAL_BLUE
+    p.font.color.rgb = TITLE_TEXT
     items_a = [
         ("Strict Chronological Order:", " Notes are sorted by start time prior to sliding; future events never precede past events."),
         ("No Lookahead Leakage:", " Window i only contains notes 1..32; target is note 33. The recurrent state only sees past history."),
@@ -710,11 +714,11 @@ def build_deck():
         r1.text = "✓ " + lbl + " "
         r1.font.bold = True
         r1.font.size = Pt(12.5)
-        r1.font.color.rgb = IVORY_TEXT
+        r1.font.color.rgb = TITLE_TEXT
         r2 = p_i.add_run()
         r2.text = desc
         r2.font.size = Pt(12)
-        r2.font.color.rgb = MUTED_TEXT
+        r2.font.color.rgb = BODY_TEXT
 
     builder.attach_notes(s9, 9, "Sequence Formulation & Training Targets",
         "SLIDE CONCEPT:\n"
@@ -738,7 +742,7 @@ def build_deck():
     archs = [
         ("1. Standard Feedforward (MLP)", "No Recurrent State", "• Structure: y = f(W x + b)\n• Flaw: Assumes all inputs are statistically independent.\n• Musical Failure: Cannot remember musical motifs, key signatures, or rhythmic cadence across time.\n• Verdict: Inapplicable for temporal music modeling.", CARD_BG, CARD_BORDER, MUTED_TEXT),
         ("2. Vanilla Recurrent Network (RNN)", "Simple Hidden Recurrence", "• Structure: h_t = tanh(W_h h_(t-1) + W_x x_t)\n• Flaw: Severe vanishing & exploding gradients through time.\n• Mathematical Breakdown: Repeated matrix multiplication causes gradient norm to vanish as γ^T (γ < 1).\n• Musical Failure: Forgets notes played > 5 steps ago.", CARD_BG, CARD_BORDER, CORAL_ACCENT),
-        ("3. Long Short-Term Memory (LSTM)", "Gated Constant Error Carousel", "• Structure: Dedicated Cell State C_t + 3 Gates (f, i, o)\n• Solution: Additive gradient highway (C_t = f_t C_(t-1) + i_t C~_t) allows gradients to flow across 32+ time steps.\n• Musical Success: Maintains long-term tonality while capturing local ornaments.\n• Verdict: Selected core architecture for MelodyLoop.", CARD_BG, CYAN_ACCENT, CYAN_ACCENT),
+        ("3. Long Short-Term Memory (LSTM)", "Gated Constant Error Carousel", "• Structure: Dedicated Cell State C_t + 3 Gates (f, i, o)\n• Solution: Additive gradient highway (C_t = f_t C_(t-1) + i_t C~_t) allows gradients to flow across 32+ time steps.\n• Musical Success: Maintains long-term tonality while capturing local ornaments.\n• Verdict: Selected core architecture for MelodyLoop.", CARD_BG, BLUE_ACCENT, BLUE_ACCENT),
     ]
     for idx, (title, sub, desc, bg, border, col) in enumerate(archs):
         builder.add_card(s10, 0.8 + idx * 4.0, 1.45, col_w, 5.4, bg, border)
@@ -756,13 +760,13 @@ def build_deck():
         p_s.text = sub
         p_s.font.size = Pt(13)
         p_s.font.bold = True
-        p_s.font.color.rgb = IVORY_TEXT
+        p_s.font.color.rgb = TITLE_TEXT
         p_s.space_before = Pt(4)
 
         p_d = tf.add_paragraph()
         p_d.text = desc
         p_d.font.size = Pt(12.5)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(12)
 
     builder.attach_notes(s10, 10, "Why LSTM Over Vanilla RNN",
@@ -790,7 +794,7 @@ def build_deck():
 
     gates = [
         ("Forget Gate (f_t)", "f_t = σ(W_f [h_(t-1), x_t] + b_f)\nOutputs values in [0, 1]. Decides what fraction of prior cell memory C_(t-1) to discard (e.g. key modulation).", CORAL_ACCENT),
-        ("Input Gate (i_t)", "i_t = σ(W_i [h_(t-1), x_t] + b_i)\nOutputs values in [0, 1]. Decides which incoming musical features from candidate C~_t are worth adding to memory.", CYAN_ACCENT),
+        ("Input Gate (i_t)", "i_t = σ(W_i [h_(t-1), x_t] + b_i)\nOutputs values in [0, 1]. Decides which incoming musical features from candidate C~_t are worth adding to memory.", BLUE_ACCENT),
         ("Candidate State (C~_t)", "C~_t = tanh(W_c [h_(t-1), x_t] + b_c)\nGenerates candidate new memory vector in [-1, 1], scaled by input gate i_t before addition into cell state.", GREEN_ACCENT),
         ("Output Gate (o_t)", "o_t = σ(W_o [h_(t-1), x_t] + b_o)\nh_t = o_t ⊙ tanh(C_t)\nFilters cell state into the exposed hidden vector h_t passed to prediction heads.", GOLD_ACCENT)
     ]
@@ -809,7 +813,7 @@ def build_deck():
         p_d = tf.add_paragraph()
         p_d.text = g_desc
         p_d.font.size = Pt(11.5)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(4)
 
     builder.attach_notes(s11, 11, "Inside the LSTM Cell",
@@ -835,8 +839,8 @@ def build_deck():
     s12.shapes.add_picture(str(img_path), Inches(0.8), Inches(1.45), Inches(11.733), Inches(3.5))
 
     cards = [
-        ("Parallel Embedding Layer", "• nn.Embedding(128, 64) -> 8,192 params\n• nn.Embedding(32, 32) -> 1,024 params\n• nn.Embedding(32, 32) -> 1,024 params\nConcatenated into 128-d input vector with Dropout(0.1).", CYAN_ACCENT),
-        ("LSTM Core Layer", "• nn.LSTM(input_size=128, hidden_size=128, num_layers=1, batch_first=True)\nWeight matrices: 4 × (128×128 + 128×128 + 2×128) = 132,096 parameters.", ROYAL_BLUE),
+        ("Parallel Embedding Layer", "• nn.Embedding(128, 64) -> 8,192 params\n• nn.Embedding(32, 32) -> 1,024 params\n• nn.Embedding(32, 32) -> 1,024 params\nConcatenated into 128-d input vector with Dropout(0.1).", BLUE_ACCENT),
+        ("LSTM Core Layer", "• nn.LSTM(input_size=128, hidden_size=128, num_layers=1, batch_first=True)\nWeight matrices: 4 × (128×128 + 128×128 + 2×128) = 132,096 parameters.", NAVY_ACCENT),
         ("Multi-Task Prediction Heads", "• Pitch Head: Linear(128, 128) -> 16,512 params\n• Duration Head: Linear(128, 32) -> 4,128 params\n• Step Head: Linear(128, 32) -> 4,128 params\nTotal Trainable Parameters: 167,104.", GOLD_ACCENT)
     ]
     for idx, (c_title, c_desc, col) in enumerate(cards):
@@ -854,7 +858,7 @@ def build_deck():
         p_d = tf.add_paragraph()
         p_d.text = c_desc
         p_d.font.size = Pt(12)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(5)
 
     builder.attach_notes(s12, 12, "Model Architecture & Parameter Breakdown",
@@ -887,7 +891,7 @@ def build_deck():
     p.text = "THE RECURRENT TRAINING CYCLE (train.py)"
     p.font.size = Pt(15)
     p.font.bold = True
-    p.font.color.rgb = CYAN_ACCENT
+    p.font.color.rgb = BLUE_ACCENT
 
     loop_steps = [
         ("1. Batch Ingestion:", "Mini-batch of 64 sequences (shape: [64, 32, 3]) transferred to GPU with non_blocking=True and pinned memory."),
@@ -904,11 +908,11 @@ def build_deck():
         r1.text = step + " "
         r1.font.bold = True
         r1.font.size = Pt(12.5)
-        r1.font.color.rgb = IVORY_TEXT
+        r1.font.color.rgb = TITLE_TEXT
         r2 = p_s.add_run()
         r2.text = desc
         r2.font.size = Pt(12)
-        r2.font.color.rgb = MUTED_TEXT
+        r2.font.color.rgb = BODY_TEXT
 
     builder.add_card(s13, 6.8, 1.45, 5.7, 5.4)
     b_r = s13.shapes.add_textbox(Inches(7.05), Inches(1.65), Inches(5.2), Inches(5.0))
@@ -938,11 +942,11 @@ def build_deck():
         r1.text = "• " + lbl + " "
         r1.font.bold = True
         r1.font.size = Pt(12.5)
-        r1.font.color.rgb = IVORY_TEXT
+        r1.font.color.rgb = TITLE_TEXT
         r2 = p_sp.add_run()
         r2.text = val
         r2.font.size = Pt(12)
-        r2.font.color.rgb = CYAN_ACCENT
+        r2.font.color.rgb = BLUE_ACCENT
 
     builder.attach_notes(s13, 13, "Multi-Task Optimization & Training Loop",
         "SLIDE CONCEPT:\n"
@@ -967,7 +971,7 @@ def build_deck():
 
     metrics = [
         ("Best Validation Checkpoint", "Epoch 07 (Val Loss: 5.9151)\nPitch: 3.320 | Dur: 1.223 | Step: 1.372\nSurpasses baseline model best val loss (6.1791) by -0.2640 points.", GREEN_ACCENT),
-        ("Training Loss Trajectory", "6.3280 (Epoch 1) → 4.9121 (Epoch 15)\nSteady monotonic reduction (-1.4159 points) proves effective backpropagation and gradient descent optimization.", CYAN_ACCENT),
+        ("Training Loss Trajectory", "6.3280 (Epoch 1) → 4.9121 (Epoch 15)\nSteady monotonic reduction (-1.4159 points) proves effective backpropagation and gradient descent optimization.", BLUE_ACCENT),
         ("Generalization & Early Stopping", "Patience = 8 Epochs Triggered at Ep 15\nValidation loss stabilized around ~5.92–6.03 while train loss continued falling. Best checkpoint was preserved to prevent overfitting.", GOLD_ACCENT)
     ]
     for idx, (m_title, m_desc, col) in enumerate(metrics):
@@ -985,7 +989,7 @@ def build_deck():
         p_d = tf.add_paragraph()
         p_d.text = m_desc
         p_d.font.size = Pt(12)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(5)
 
     builder.attach_notes(s14, 14, "Empirical Training Curves & Checkpoint Selection",
@@ -1017,7 +1021,7 @@ def build_deck():
     p.text = "CHECKPOINT PAYLOAD ANATOMY (.pt)"
     p.font.size = Pt(15)
     p.font.bold = True
-    p.font.color.rgb = CYAN_ACCENT
+    p.font.color.rgb = BLUE_ACCENT
 
     ckpt_items = [
         ("model_state_dict:", "Complete dictionary of all learned PyTorch tensor weight matrices (167,104 parameters)."),
@@ -1039,7 +1043,7 @@ def build_deck():
         r2 = p_c.add_run()
         r2.text = desc
         r2.font.size = Pt(12)
-        r2.font.color.rgb = MUTED_TEXT
+        r2.font.color.rgb = BODY_TEXT
 
     builder.add_card(s15, 6.8, 1.45, 5.7, 5.4)
     b_r = s15.shapes.add_textbox(Inches(7.05), Inches(1.65), Inches(5.2), Inches(5.0))
@@ -1054,9 +1058,9 @@ def build_deck():
 
     files = [
         ("best_model_expanded.pt", "Epoch 7 Best Model", "Val Loss: 5.9151 | Trained on 962 files, 100k sequences. Primary deployment checkpoint.", GREEN_ACCENT),
-        ("latest_model_expanded.pt", "Epoch 15 Latest Model", "Val Loss: 6.0386 | Final epoch before early stopping. Preserved for training recovery.", ROYAL_BLUE),
+        ("latest_model_expanded.pt", "Epoch 15 Latest Model", "Val Loss: 6.0386 | Final epoch before early stopping. Preserved for training recovery.", NAVY_ACCENT),
         ("best_model_v1_baseline.pt", "Epoch 4 Baseline Model", "Val Loss: 6.1791 | Original 13-performance model safely preserved for comparative benchmark.", MUTED_TEXT),
-        ("training_expanded.log", "Persistent Training Record", "Complete timestamped log of all batches, running averages, and validation metrics.", CYAN_ACCENT)
+        ("training_expanded.log", "Persistent Training Record", "Complete timestamped log of all batches, running averages, and validation metrics.", BLUE_ACCENT)
     ]
     for fname, sub, desc, col in files:
         p_f = tf_r.add_paragraph()
@@ -1070,7 +1074,7 @@ def build_deck():
         r2 = p_f.add_run()
         r2.text = f"{sub} — {desc}"
         r2.font.size = Pt(12)
-        r2.font.color.rgb = MUTED_TEXT
+        r2.font.color.rgb = BODY_TEXT
 
     builder.attach_notes(s15, 15, "Checkpoint Serialization & Persistence",
         "SLIDE CONCEPT:\n"
@@ -1094,9 +1098,9 @@ def build_deck():
     s16.shapes.add_picture(str(img_path), Inches(0.8), Inches(1.45), Inches(11.733), Inches(3.5))
 
     cards = [
-        ("Temperature Scaling (T = 0.6)", "P(y_i) = exp(z_i / T) / Σ exp(z_j / T)\n• Low Temp (T=0.4–0.6): Sharpens distribution around high-confidence notes; prevents erratic dissonance.\n• High Temp (T=1.2): Flattens distribution; encourages exploration at the cost of coherence.", CYAN_ACCENT),
+        ("Temperature Scaling (T = 0.6)", "P(y_i) = exp(z_i / T) / Σ exp(z_j / T)\n• Low Temp (T=0.4–0.6): Sharpens distribution around high-confidence notes; prevents erratic dissonance.\n• High Temp (T=1.2): Flattens distribution; encourages exploration at the cost of coherence.", BLUE_ACCENT),
         ("Top-K Candidate Truncation (k = 5)", "Sorts predicted logits, retains only top k=5 most probable candidates, sets all others to -inf, and renormalizes with Softmax.\nCompletely eliminates tail probability hallucinations and unnatural pitch jumps.", GOLD_ACCENT),
-        ("Dual Generation Modes", "• Free Generation: Generates from scratch using an initial uniform middle-register seed buffer.\n• Seeded Continuation: Ingests 32 notes from real classical MIDI (e.g. Schubert, Chopin) and generates an original LSTM continuation.", ROYAL_BLUE)
+        ("Dual Generation Modes", "• Free Generation: Generates from scratch using an initial uniform middle-register seed buffer.\n• Seeded Continuation: Ingests 32 notes from real classical MIDI (e.g. Schubert, Chopin) and generates an original LSTM continuation.", NAVY_ACCENT)
     ]
     for idx, (c_title, c_desc, col) in enumerate(cards):
         builder.add_card(s16, 0.8 + idx * 4.0, 5.15, 3.733, 1.8)
@@ -1113,7 +1117,7 @@ def build_deck():
         p_d = tf.add_paragraph()
         p_d.text = c_desc
         p_d.font.size = Pt(12)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(5)
 
     builder.attach_notes(s16, 16, "Autoregressive Sampling & Top-K Filtering",
@@ -1141,9 +1145,9 @@ def build_deck():
     s17.shapes.add_picture(str(img_path), Inches(0.8), Inches(1.45), Inches(11.733), Inches(3.5))
 
     cards = [
-        ("Additive Harmonic Synthesis", "Real piano tones contain harmonic overtones. melodyloop/audio.py synthesizes notes via:\n  s(t) = 0.60 sin(2π f0 t) + 0.25 sin(4π f0 t) + 0.15 sin(6π f0 t)\nFundamental f0 + 2nd harmonic (2f0) + 3rd harmonic (3f0).", CYAN_ACCENT),
+        ("Additive Harmonic Synthesis", "Real piano tones contain harmonic overtones. melodyloop/audio.py synthesizes notes via:\n  s(t) = 0.60 sin(2π f0 t) + 0.25 sin(4π f0 t) + 0.15 sin(6π f0 t)\nFundamental f0 + 2nd harmonic (2f0) + 3rd harmonic (3f0).", BLUE_ACCENT),
         ("ADSR Amplitude Envelope", "To prevent harsh clicking artifacts at note onset and release, an exponential envelope is applied:\n  E(t) = exp(-3.0 t / duration)\nIncludes 5ms linear attack ramp and 10ms smooth release decay.", GOLD_ACCENT),
-        ("Dual Export Pipeline", "• MIDI File (.mid): Built via mido, contains raw Note On/Off channel events and microsecond tempo (120 BPM).\n• WAV File (.wav): 44.1 kHz 16-bit PCM waveform rendered entirely in pure NumPy/SciPy without external soundfonts.", ROYAL_BLUE)
+        ("Dual Export Pipeline", "• MIDI File (.mid): Built via mido, contains raw Note On/Off channel events and microsecond tempo (120 BPM).\n• WAV File (.wav): 44.1 kHz 16-bit PCM waveform rendered entirely in pure NumPy/SciPy without external soundfonts.", NAVY_ACCENT)
     ]
     for idx, (c_title, c_desc, col) in enumerate(cards):
         builder.add_card(s17, 0.8 + idx * 4.0, 5.15, 3.733, 1.8)
@@ -1160,7 +1164,7 @@ def build_deck():
         p_d = tf.add_paragraph()
         p_d.text = c_desc
         p_d.font.size = Pt(12)
-        p_d.font.color.rgb = MUTED_TEXT
+        p_d.font.color.rgb = BODY_TEXT
         p_d.space_before = Pt(5)
 
     builder.attach_notes(s17, 17, "Audio Rendering & Synthesis",
@@ -1191,6 +1195,7 @@ def write_speaker_notes_md(notes_list):
         "> **Project:** MelodyLoop — LSTM Music Generation  ",
         "> **Repository:** `https://github.com/Pankaj-Jhajhria/Music-Generation-using-LSTM-MelodyLoop-`  ",
         "> **Audience:** Academic Faculty Evaluation Panel & Technical Defense  ",
+        "> **Theme:** Professional Academic Light/White Presentation Deck  ",
         "> **Scope:** 17-Slide Technical Walkthrough (In-depth oral presentation scripts, architectural proofs, and anticipated viva defense questions).",
         "",
         "---",
