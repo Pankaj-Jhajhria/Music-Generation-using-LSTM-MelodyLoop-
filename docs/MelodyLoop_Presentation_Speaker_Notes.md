@@ -1,14 +1,15 @@
-# MelodyLoop: Academic Presentation Speaker Notes
+# MelodyLoop — Professional Oral Defense & Speaker Notes
 
-**Project:** MelodyLoop — Music Generation Using an LSTM  
-**Target Audience:** Professor & Academic Project Evaluation Committee  
-**Format:** 10–15 Minute Formal Project Defense (24 Slides)  
-**Repository:** `https://github.com/Pankaj-Jhajhria/Music-Generation-using-LSTM-MelodyLoop-`  
+> **Project:** MelodyLoop — LSTM Music Generation  
+> **Repository:** `https://github.com/Pankaj-Jhajhria/Music-Generation-using-LSTM-MelodyLoop-`  
+> **Audience:** Academic Faculty Evaluation Panel & Technical Defense  
+> **Scope:** 17-Slide Technical Walkthrough (In-depth oral presentation scripts, architectural proofs, and anticipated viva defense questions).
 
 ---
 
 ## Slide 01: Title Slide — MelodyLoop
 
+```text
 OPENING TALK:
 Good morning, Professor and members of the evaluation committee. Today, I am presenting MelodyLoop, an end-to-end deep learning engineering project focused on symbolic piano music generation using a custom Long Short-Term Memory network.
 
@@ -23,11 +24,13 @@ KEY ENGINEERING MILESTONES:
 
 TRANSITION:
 Let us begin with the formal problem statement and our engineering objectives.
+```
 
 ---
 
 ## Slide 02: Problem Formulation & Objectives
 
+```text
 SLIDE CONCEPT:
 Here we define why symbolic music generation is an ideal sequence-modeling task and specify the exact engineering goals of MelodyLoop.
 
@@ -37,11 +40,13 @@ If you predict only pitch, you lose rhythm and tempo completely. If you model ra
 
 TRANSITION:
 Now let us examine the complete end-to-end system architecture that implements this pipeline.
+```
 
 ---
 
 ## Slide 03: Complete End-to-End Workflow
 
+```text
 SLIDE CONCEPT:
 This slide presents the entire MelodyLoop architecture from raw dataset to final playable audio.
 
@@ -53,11 +58,13 @@ The system operates in three decoupled, production-grade phases:
 
 TRANSITION:
 Let us examine how acoustic piano notes are translated into numerical representations.
+```
 
 ---
 
 ## Slide 04: Keyboard to MIDI Representation
 
+```text
 SLIDE CONCEPT:
 Explaining how a physical acoustic piano translates mathematically into discrete MIDI integers.
 
@@ -69,11 +76,13 @@ KEY POINTS TO EMPHASIZE:
 
 TRANSITION:
 Now let us clarify why symbolic MIDI instructions differ fundamentally from audio waveforms.
+```
 
 ---
 
 ## Slide 05: Symbolic MIDI vs. Continuous Audio
 
+```text
 SLIDE CONCEPT:
 Clarifying the fundamental technical distinction between symbolic musical tokens and continuous acoustic sound.
 
@@ -84,11 +93,13 @@ Sound only exists when those instructions pass into an audio synthesizer. In Mel
 
 TRANSITION:
 Let us examine the MAESTRO dataset used to train this network.
+```
 
 ---
 
 ## Slide 06: The MAESTRO Dataset
 
+```text
 SLIDE CONCEPT:
 Presenting the official MAESTRO v3.0.0 dataset and proving zero data leakage across training, validation, and test splits.
 
@@ -100,43 +111,48 @@ TECHNICAL DETAILS:
 
 TRANSITION:
 Let us examine the empirical scaling experiment: how we expanded from the baseline 13 files to all 962 performances.
+```
 
 ---
 
 ## Slide 07: Corpus Scaling & Bottleneck Diagnosis
 
+```text
 SLIDE CONCEPT:
-Explaining why the initial experiment only trained on 13 files and how we engineered the expanded dataset pipeline.
+Explaining why the baseline model only trained on 13 files and detailing the architectural fix that scaled training across all 962 performances.
 
 VIVA QUESTION READINESS:
-If a professor asks: 'Why did the earlier version stop after 13 performances?'
-Answer: In melodyloop/data.py line 231, there was an early termination condition: if current_total >= max_sequences and files_processed >= min(num_target_files, 25): break. Because max_sequences was set to 15,000, it accumulated 15,000 sequences from the first 13 files and immediately broke out of the loop, skipping the other 949 training files.
-
-OUR SOLUTION:
-We redesigned the data loader with proportional sequence balancing: each piece contributes an even budget of sequences across its duration. We also implemented multi-process parsing and uint8 compact tensor storage, allowing us to process all 5.66 million note events across 962 files within 2 minutes and load them in 1.88 seconds.
+Professor: 'Why did your baseline only train on 13 files?'
+Answer:
+In the original data.py, there was a break statement: 'if total_sequences >= 15000: break'. Because long virtuosic classical performances yield over 1,500 sequences per file, the threshold was triggered after just 13 performances. The model memorized a tiny subset of composers.
+We completely restructured data.py to proportionally extract sequences from all 962 performances, scaling note events from 64k to 5.66 million while keeping RAM footprint compact via uint8 tensors.
 
 TRANSITION:
-Let us examine the exact mathematical tokenization that converts MIDI into training events.
+Now let us examine the data preprocessing pipeline from raw MIDI to training tensors.
+```
 
 ---
 
 ## Slide 08: Data Preprocessing & Quantization
 
+```text
 SLIDE CONCEPT:
 Explaining the 4-step preprocessing pipeline and the quantization mathematics that map continuous physical timings into discrete neural tokens.
 
 TECHNICAL DETAILS:
 Why 32 bins?
-If you use too few bins (e.g. 4 bins), the model has no rhythmic subtlety; notes sound robotic. If you use too many bins (e.g. 500 bins), data becomes sparse and the output cross-entropy loss becomes difficult to optimize.
-By setting duration_bins=32 across [0.05s, 4.0s] and step_bins=32 across [0.0s, 2.0s], we capture staccato notes (0.05s), quarter notes, whole notes, simultaneous chords (step=0.0s), and musical pauses up to 2.0s with high fidelity.
+If you use continuous floating-point numbers directly in an RNN, the network struggles with regression loss landscape instability and error compounding.
+By quantizing continuous time into 32 discrete bins, we convert regression into classification. Softmax over 32 bins allows the model to capture multi-modal timing patterns (e.g., either an eighth note or a quarter note, never an arbitrary irrational duration).
 
 TRANSITION:
-Now let us examine how these note events are framed into sliding window sequences for next-event supervised learning.
+Now let us see how these token tuples are assembled into sliding sequence windows.
+```
 
 ---
 
 ## Slide 09: Sequence Formulation & Training Targets
 
+```text
 SLIDE CONCEPT:
 Explaining how chronologically ordered note events are sliced into input windows and multi-task prediction targets.
 
@@ -147,11 +163,13 @@ KEY ARCHITECTURAL DECISIONS:
 
 TRANSITION:
 Now let us examine why an LSTM architecture is specifically chosen to model these sequential dependencies.
+```
 
 ---
 
 ## Slide 10: Why LSTM Over Vanilla RNN
 
+```text
 SLIDE CONCEPT:
 A rigorous theoretical comparison showing why an LSTM is required for musical sequence modeling over feedforward or vanilla RNN networks.
 
@@ -164,11 +182,13 @@ Answer:
 
 TRANSITION:
 Now let us examine the internal anatomy of an LSTM cell and its mathematical gates.
+```
 
 ---
 
 ## Slide 11: Inside the LSTM Cell
 
+```text
 SLIDE CONCEPT:
 Walking through the mathematical mechanics of the four internal operations in an LSTM cell.
 
@@ -180,11 +200,13 @@ WALKTHROUGH OF THE DIAGRAM:
 
 TRANSITION:
 Now let us examine how this LSTM cell is integrated into the actual MelodyLoop network architecture.
+```
 
 ---
 
 ## Slide 12: Model Architecture & Parameter Breakdown
 
+```text
 SLIDE CONCEPT:
 Presenting the verified PyTorch architecture implemented in melodyloop/model.py.
 
@@ -198,11 +220,13 @@ Verified by test_model_parameter_count.
 
 TRANSITION:
 Now let us examine how the network optimizes these 167k parameters during training.
+```
 
 ---
 
 ## Slide 13: Multi-Task Optimization & Training Loop
 
+```text
 SLIDE CONCEPT:
 Detailing the optimization cycle, gradient clipping, loss formulation, and hardware execution parameters.
 
@@ -213,11 +237,13 @@ KEY CONCEPTS:
 
 TRANSITION:
 Let us examine the empirical training loss curves and why early stopping selected epoch 7 as our best checkpoint.
+```
 
 ---
 
 ## Slide 14: Empirical Training Curves & Checkpoint Selection
 
+```text
 SLIDE CONCEPT:
 Analyzing the actual epoch-by-epoch training history recorded in artifacts/logs/training_expanded.log.
 
@@ -230,11 +256,13 @@ Notice the classic divergence between training loss and validation loss:
 
 TRANSITION:
 Let us examine how checkpoints are serialized and preserved on disk.
+```
 
 ---
 
 ## Slide 15: Checkpoint Serialization & Persistence
 
+```text
 SLIDE CONCEPT:
 Explaining how model weights, optimizer states, and configuration metadata are serialized into PyTorch .pt binaries.
 
@@ -245,11 +273,13 @@ KEY ENGINEERING PRACTICES:
 
 TRANSITION:
 Now let us examine how the trained model autoregressively generates new musical compositions.
+```
 
 ---
 
 ## Slide 16: Autoregressive Sampling & Top-K Filtering
 
+```text
 SLIDE CONCEPT:
 Explaining the mathematical mechanics of autoregressive generation and stochastic sampling controls.
 
@@ -263,11 +293,13 @@ How Autoregression Works:
 
 TRANSITION:
 Now let us see how these discrete tokens are rendered into playable sound.
+```
 
 ---
 
 ## Slide 17: Audio Rendering & Synthesis
 
+```text
 SLIDE CONCEPT:
 Explaining the physics and DSP mathematics behind converting discrete tokens into 44.1 kHz WAV audio.
 
@@ -277,87 +309,8 @@ TECHNICAL DETAILS:
 - Amplitude Envelope: In an acoustic piano, when the hammer strikes the string, amplitude peaks instantly and decays exponentially. We multiply the composite wave by exp(-3.0 * t / duration), with a 5 millisecond attack and 10 millisecond release to eliminate boundary clicking.
 - This entire DSP pipeline is self-contained in pure NumPy and SciPy—requiring zero external soundfonts or third-party audio drivers.
 
-TRANSITION:
-Now let us see the working Streamlit web application where users can interact with this pipeline.
+CLOSING SUMMARY:
+MelodyLoop demonstrates how an LSTM trained on symbolic performance data learns rhythmic and melodic patterns, serialized into verifiable checkpoints, and synthesized into playable music in real time.
+```
 
 ---
-
-## Slide 18: Streamlit Web Dashboard
-
-SLIDE CONCEPT:
-Demonstrating the deployed user interface and real-time visualization features of app.py.
-
-KEY FEATURES TO DEMONSTRATE:
-- The application is built using Streamlit and renders a dark DAW-like interface.
-- The sidebar contains a checkpoint selector allowing immediate A/B testing: you can listen to a melody generated by the baseline 13-performance model, then immediately switch to the expanded 962-performance model.
-- The piano-roll visualizer clearly separates the human seed phrase (in gold) from the LSTM continuation (in cyan), with a vertical red boundary marker at t=6.0 seconds.
-- Audio synthesis runs in-memory: clicking 'Generate' synthesizes 80 notes into a WAV file in ~0.5 seconds and passes it directly to the browser audio player.
-
-TRANSITION:
-Now let us examine the quantitative and qualitative evaluation results: does the music actually sound better?
-
----
-
-## Slide 19: Quantitative & Qualitative Evaluation
-
-SLIDE CONCEPT:
-An honest, technically rigorous evaluation of musical output comparing baseline, expanded, and ground-truth Scriabin performances.
-
-KEY FINDINGS TO HIGHLIGHT:
-1. The Duration Fix: In the baseline model, note durations collapsed to 0.06s—sounding like rapid machine-gun clicks. The expanded model learned realistic piano note durations (0.34s) and step intervals (0.25s), aligning closely with real human performances (0.48s duration, 0.21s step).
-2. Monotone Repetition: The baseline model repeated identical pitches 17.7% of the time. The expanded model dropped repetition to 10.1%—a 43% relative reduction.
-3. Pitch Smoothness: The baseline model jumped erratically across the keyboard (average jump 6.48 semitones). The expanded model settled into smooth step-wise motion (average jump 1.49 semitones), producing lyrical singing melodies.
-4. Limitations: An LSTM with 128 hidden units cannot learn 4-part Bach counterpoint or Beethoven sonata form. After 40 to 60 notes, it wanders tonally. We do not claim human-level mastery; we demonstrate a working, verifiable sequence model.
-
-TRANSITION:
-Let us summarize our key engineering takeaways.
-
----
-
-## Slide 20: Key Technical Takeaways
-
-CLOSING TALK:
-In conclusion, MelodyLoop successfully demonstrates the entire lifecycle of a deep learning sequence-modeling system:
-1. We took raw, expressive classical piano performances and engineered a discrete 3-tuple symbolic tokenization that captures pitch, duration, and step interval.
-2. We diagnosed and resolved the early data bottleneck, scaling the pipeline across 962 MAESTRO performances (5.66M notes) using compact uint8 tensor datasets.
-3. We trained a 167k-parameter multi-head LSTM from scratch, achieving a best validation loss of 5.9151 at epoch 7.
-4. We deployed the system into an interactive Streamlit application with additive audio synthesis and proved through quantitative metrics that expanded training fixed rhythmic duration collapse.
-
-Thank you, Professor. I am now ready to take your questions.
-
----
-
-## Slide 21: Viva Prep A — Data & Representation
-
-VIVA QUESTION GUIDELINES:
-Focus on technical precision. If asked about quantization bounds, explain that min_duration=0.05s prevents divide-by-zero artifacts and captures the fastest 32nd notes, while max_duration=4.0s captures sustained pedal chords.
-If asked about memory bounds, explain that storing sequences as np.uint8 instead of np.int64 reduced the in-memory footprint from 77 MB to 9.6 MB, allowing all 100k sequences to live in RAM with zero garbage collection lag.
-
----
-
-## Slide 22: Viva Prep B — LSTM Mechanics & Training Dynamics
-
-VIVA QUESTION GUIDELINES:
-Key point on MSE vs Cross-Entropy:
-Professors frequently ask: 'Why treat duration as a classification problem instead of regression with MSE?'
-Answer: Duration in music is rhythmic and discrete (e.g. quarter notes, eighth notes, triplets). Regression often predicts muddy average values (e.g. 0.372s) that do not correspond to musical rhythmic subdivisions. Classification with 32 bins allows the model to learn multimodal probability peaks on standard rhythmic subdivisions.
-
----
-
-## Slide 23: Viva Prep C — Generation & Audio Synthesis
-
-VIVA QUESTION GUIDELINES:
-Explain that temperature and top-k are orthogonal sampling controls:
-- Top-k filters the candidate pool (eliminates impossible notes).
-- Temperature controls how flat or sharp the probability distribution is among those valid candidates.
-- Together, they eliminate both monotone looping (from argmax) and chaotic noise (from uniform sampling).
-
----
-
-## Slide 24: Technical Quick Reference Card
-
-SLIDE CONCEPT:
-A final cheat-sheet model card summarizing all verified numbers, dimensions, paths, and commands in one place for rapid reference during the viva defense.
-
----
-
