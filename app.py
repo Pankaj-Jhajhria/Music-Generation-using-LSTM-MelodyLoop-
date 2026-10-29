@@ -6,8 +6,14 @@ local audio playback, and side-by-side comparison with the real MAESTRO dataset.
 
 from pathlib import Path
 import os
+import sys
 import random
 import time
+
+# Cross-platform compatibility: Allow unpickling Windows-saved checkpoints on Linux (Streamlit Cloud)
+if sys.platform != "win32":
+    import pathlib
+    pathlib.WindowsPath = pathlib.PosixPath
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -45,13 +51,22 @@ st.set_page_config(
 
 
 def load_model_from_checkpoint(ckpt_path: Path, cfg: Config, device: str):
-    """Load model checkpoint safely."""
+    """Load model checkpoint safely with cross-platform fallback."""
     if not ckpt_path.exists():
         return None, None
 
-    checkpoint = torch.load(str(ckpt_path), map_location=torch.device(device), weights_only=False)
+    try:
+        checkpoint = torch.load(str(ckpt_path), map_location=torch.device(device), weights_only=False)
+    except Exception as e:
+        if "WindowsPath" in str(e) or "UnsupportedOperation" in str(e):
+            import pathlib
+            pathlib.WindowsPath = pathlib.PosixPath
+            checkpoint = torch.load(str(ckpt_path), map_location=torch.device(device), weights_only=False)
+        else:
+            raise e
+
     saved_cfg = checkpoint.get("config", {})
-    if "hidden_dim" in saved_cfg:
+    if isinstance(saved_cfg, dict) and "hidden_dim" in saved_cfg:
         cfg.hidden_dim = saved_cfg["hidden_dim"]
 
     model = MelodyLSTM(cfg)
@@ -62,11 +77,20 @@ def load_model_from_checkpoint(ckpt_path: Path, cfg: Config, device: str):
 
 
 def load_conditional_model_from_checkpoint(ckpt_path: Path, cfg: Config, device: str):
-    """Load conditional model checkpoint safely."""
+    """Load conditional model checkpoint safely with cross-platform fallback."""
     if not ckpt_path.exists():
         return None, None
 
-    checkpoint = torch.load(str(ckpt_path), map_location=torch.device(device), weights_only=False)
+    try:
+        checkpoint = torch.load(str(ckpt_path), map_location=torch.device(device), weights_only=False)
+    except Exception as e:
+        if "WindowsPath" in str(e) or "UnsupportedOperation" in str(e):
+            import pathlib
+            pathlib.WindowsPath = pathlib.PosixPath
+            checkpoint = torch.load(str(ckpt_path), map_location=torch.device(device), weights_only=False)
+        else:
+            raise e
+
     model = ConditionalMelodyLSTM(
         cfg=cfg,
         velocity_bins=16,
