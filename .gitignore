@@ -5,6 +5,7 @@
 # Datasets (Full 1GB+ MAESTRO dataset is local only)
 data_maestrov3.0.0-midi/
 data_maestro3.0.0-midi/
+data_midicaps/
 data/
 
 # Python & Virtual Environments
