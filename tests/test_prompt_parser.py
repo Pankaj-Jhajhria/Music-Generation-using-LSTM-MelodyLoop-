@@ -60,3 +60,4 @@ def test_condition_indices_mapping():
     assert t_idx > 0
     assert r_idx > 0
     assert d_idx > 0
+

@@ -63,35 +63,50 @@ def initialize_seed_sequence(
     cfg: Config,
     register: str = "middle",
     dynamics: str = "medium",
+    tempo: str = "moderate",
     seq_length: int = 32,
 ) -> List[Tuple[int, int, int, int]]:
     """
-    Generate an initial seed event sequence consistent with the requested register and dynamics.
+    Generate an initial seed event sequence consistent with the requested register, dynamics, and tempo.
     Each event is (pitch, duration_bin, step_bin, velocity_bin).
     """
-    if register == "low":
-        base_pitch = 48  # C3
-    elif register == "high":
-        base_pitch = 72  # C5
-    else:
-        base_pitch = 60  # Middle C (C4)
-
-    if dynamics == "soft":
-        base_vel = 45
-    elif dynamics == "strong":
-        base_vel = 105
-    else:
-        base_vel = 80
-
     from melodyloop.conditional_data import quantize_velocity
     from melodyloop.data import quantize_duration, quantize_step
 
-    d_bin = quantize_duration(0.35, cfg)
-    s_bin = quantize_step(0.25, cfg)
+    # 1. Pitch Register Root & Scale
+    if register == "low":
+        base_pitch = 38  # D2 bass octave
+        scale_offsets = [0, 2, 3, 5, 7, 5, 3, 2]  # Natural minor bass contour
+    elif register == "high":
+        base_pitch = 74  # D5 treble octave
+        scale_offsets = [0, 2, 4, 7, 9, 7, 4, 2]  # Pentatonic soprano contour
+    else:
+        base_pitch = 62  # D4 central keyboard range
+        scale_offsets = [0, 2, 4, 5, 7, 5, 4, 2]  # Central diatonic contour
+
+    # 2. Dynamics Velocity Root
+    if dynamics == "soft":
+        base_vel = 45  # piano (p)
+    elif dynamics == "strong":
+        base_vel = 110  # forte (f)
+    else:
+        base_vel = 80  # mezzo-forte (mf)
+
+    # 3. Tempo Timing Root
+    if tempo == "fast":
+        base_step = 0.10
+        base_dur = 0.15
+    elif tempo == "slow":
+        base_step = 0.38
+        base_dur = 0.50
+    else:
+        base_step = 0.20
+        base_dur = 0.30
+
+    d_bin = quantize_duration(base_dur, cfg)
+    s_bin = quantize_step(base_step, cfg)
     v_bin = quantize_velocity(base_vel, num_bins=16)
 
-    # Minor/Major pentatonic motif for seed continuity
-    scale_offsets = [0, 2, 4, 7, 9, 12, 9, 7, 4, 2]
     events: List[Tuple[int, int, int, int]] = []
     for i in range(seq_length):
         offset = scale_offsets[i % len(scale_offsets)]
@@ -106,14 +121,15 @@ def generate_conditional_melody(
     cfg: Config,
     condition: Union[Tuple[int, int, int, int], List[int], Dict[str, str]],
     length: int = 80,
-    temperature: float = 0.8,
-    top_k: int = 0,
+    temperature: float = 0.75,
+    top_k: int = 6,
     seed: Optional[int] = None,
     seed_events: Optional[List[Tuple[int, int, int, int]]] = None,
     device: Optional[torch.device] = None,
 ) -> List[Dict[str, Any]]:
     """
     Generate an autoregressive melody conditioned on (mood, tempo, register, dynamics).
+    Applies gentle condition anchoring to prevent autoregressive drift.
     Returns a list of note dictionaries:
       {"pitch": int, "start": float, "duration": float, "velocity": int, "step": float}
     """
@@ -139,7 +155,8 @@ def generate_conditional_melody(
 
     cond_tensor = torch.tensor([cond_indices], dtype=torch.long, device=device)
 
-    # Resolve register and dynamics strings for initial seed
+    # Resolve register, dynamics, and tempo strings for initial seed
+    tempo_str = TEMPO_VOCAB[cond_indices[1]] if cond_indices[1] < len(TEMPO_VOCAB) else "moderate"
     reg_str = REGISTER_VOCAB[cond_indices[2]] if cond_indices[2] < len(REGISTER_VOCAB) else "middle"
     dyn_str = DYNAMICS_VOCAB[cond_indices[3]] if cond_indices[3] < len(DYNAMICS_VOCAB) else "medium"
 
@@ -148,12 +165,15 @@ def generate_conditional_melody(
             cfg=cfg,
             register=reg_str,
             dynamics=dyn_str,
+            tempo=tempo_str,
             seq_length=cfg.seq_length,
         )
     else:
         running_events = list(seed_events[-cfg.seq_length :])
 
     generated_events: List[Tuple[int, int, int, int]] = []
+    pitches_all = torch.arange(cfg.pitch_vocab_size, dtype=torch.float32, device=device)
+    vels_all = torch.arange(16, dtype=torch.float32, device=device)
 
     with torch.no_grad():
         for _ in range(length):
@@ -163,10 +183,28 @@ def generate_conditional_melody(
 
             lp, ld, ls, lv, _ = model(x, cond_tensor)
 
-            p_idx = sample_with_temperature(lp[0], temperature=temperature, top_k=top_k)
+            # Gentle register prior shaping to prevent autoregressive drift
+            logits_p = lp[0].clone()
+            if reg_str == "low":
+                logits_p -= 0.28 * torch.clamp(pitches_all - 58.0, min=0.0)
+            elif reg_str == "high":
+                logits_p -= 0.28 * torch.clamp(68.0 - pitches_all, min=0.0)
+            elif reg_str == "middle":
+                logits_p -= 0.15 * torch.clamp(pitches_all - 71.0, min=0.0)
+                logits_p -= 0.15 * torch.clamp(58.0 - pitches_all, min=0.0)
+
+            # Gentle dynamics prior shaping
+            logits_v = lv[0].clone()
+            if dyn_str == "soft":
+                logits_v -= 0.35 * torch.clamp(vels_all - 8.0, min=0.0)
+            elif dyn_str == "strong":
+                logits_v -= 0.35 * torch.clamp(10.0 - vels_all, min=0.0)
+
+            # Sample next attributes
+            p_idx = sample_with_temperature(logits_p, temperature=temperature, top_k=top_k)
             d_idx = sample_with_temperature(ld[0], temperature=temperature, top_k=top_k)
             s_idx = sample_with_temperature(ls[0], temperature=temperature, top_k=top_k)
-            v_idx = sample_with_temperature(lv[0], temperature=temperature, top_k=top_k)
+            v_idx = sample_with_temperature(logits_v, temperature=temperature, top_k=top_k)
 
             # Ensure valid bounds
             p_idx = min(max(p_idx, 0), cfg.pitch_vocab_size - 1)
@@ -183,17 +221,23 @@ def generate_conditional_melody(
     current_time = 0.0
 
     # Timing calibration based on requested tempo
-    tempo_idx = cond_indices[1]
-    if tempo_idx == TEMPO_TO_IDX.get("slow", 1):
-        step_multiplier = 1.35
-    elif tempo_idx == TEMPO_TO_IDX.get("fast", 3):
-        step_multiplier = 0.75
+    if tempo_str == "slow":
+        step_multiplier = 1.45
+        min_step = 0.15
+        max_step = 1.60
+    elif tempo_str == "fast":
+        step_multiplier = 0.65
+        min_step = 0.04
+        max_step = 0.24
     else:
-        step_multiplier = 1.0
+        step_multiplier = 1.00
+        min_step = 0.05
+        max_step = 0.80
 
     for p_idx, d_idx, s_idx, v_idx in generated_events:
         dur = dequantize_duration(d_idx, cfg)
-        step = dequantize_step(s_idx, cfg) * step_multiplier
+        raw_step = dequantize_step(s_idx, cfg) * step_multiplier
+        step = min(max(raw_step, min_step), max_step)
         vel = dequantize_velocity(v_idx, num_bins=16)
 
         notes.append({
@@ -326,11 +370,13 @@ def synthesize_conditional_audio(
 
         audio[start_idx:end_idx] += waveform * envelope * gain
 
-    # Soft peak normalization that preserves dynamics contrast
-    max_val = np.max(np.abs(audio))
-    if max_val > 1e-4:
-        audio = (audio / max_val) * 0.90
+    # Safety ceiling: prevent digital clipping without destroying velocity dynamics contrast.
+    # We do NOT normalize every piece to peak 0.90 because that would artificially boost soft pieces.
+    max_val = float(np.max(np.abs(audio)))
+    if max_val > 0.92:
+        audio = (audio / max_val) * 0.92
 
     audio_int16 = (audio * 32767.0).astype(np.int16)
     wavfile.write(str(out_p), sample_rate, audio_int16)
     return out_p
+

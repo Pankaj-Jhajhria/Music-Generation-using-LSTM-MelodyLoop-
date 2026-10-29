@@ -78,3 +78,4 @@ def test_midi_and_audio_export():
         sr, audio_data = wavfile.read(str(wav_path))
         assert sr == 44100
         assert len(audio_data) > 0
+

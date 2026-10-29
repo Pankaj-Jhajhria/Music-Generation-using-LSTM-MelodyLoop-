@@ -152,3 +152,4 @@ To prevent data leakage:
 - **Dataset License:** CC BY-SA 4.0. Users are free to share and adapt the material provided appropriate credit is given and derivative works are distributed under the same license.
 - **Model Checkpoints & Generated MIDI:** MelodyLoop models trained on MidiCaps learn statistical associations over symbolic MIDI representations. Generated MIDI files are novel synthetic sequences and are safe for academic, educational, and creative exploration.
 - **Caption Attribution Disclaimer:** The natural-language captions and mood labels in MidiCaps were generated via an automated LLM and music-tagging pipeline. They represent approximate computational approximations rather than definitive psychological ground truth.
+

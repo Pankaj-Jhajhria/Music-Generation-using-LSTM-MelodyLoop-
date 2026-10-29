@@ -178,3 +178,4 @@ class ConditionalMelodyLSTM(nn.Module):
     def get_parameter_count(self) -> int:
         """Return total trainable parameter count."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+

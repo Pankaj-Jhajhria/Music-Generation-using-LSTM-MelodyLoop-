@@ -196,48 +196,75 @@ Both Mode A (manual controls) and Mode B (text prompts) map to the same internal
 
 ## 7. Empirical Condition Adherence Evaluation
 
-Condition adherence was evaluated across multiple seeds using `evaluate_conditional.py`:
+Condition adherence was evaluated systematically across multiple seeds ($N=10$ runs per condition) using [`evaluate_conditional.py`](file:///c:/Users/panka/Downloads/AI_Engineer/Projects/College/NLP_Project\MelodyLoop/evaluate_conditional.py). The results reflect both symbolic MIDI attributes and rendered audio characteristics:
 
 ### 7.1 Pitch Register Adherence
 
-| Target Register | Measured Median Pitch | Pitch Range Observed | Adherence Rate |
-| :--- | :--- | :--- | :--- |
-| **Low** | **61.1** (Bass/Tenor) | MIDI 29 – 94 | 20% strict (strongly shifted downward) |
-| **Middle** | **67.6** (Central C4/E4) | MIDI 38 – 94 | **100%** |
-| **High** | **74.0** (Treble C5+) | MIDI 29 – 97 | **80%** |
+Target thresholds: **Low** ($\le 58$, below Middle C), **Middle** ($59 - 71$), **High** ($\ge 72$, above Treble C5).
 
-*Finding:* Pitch shifts monotonically higher as requested ($61.1 \to 67.6 \to 74.0$).
+| Target Register | Mean Pitch | Median Pitch | 25th – 75th %ile | Pitch Range | Adherence Rate |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Low** | **54.8** (F#3) | **55.2** (G3) | 51.9 – 59.0 | MIDI 36 – 67 | **90%** |
+| **Middle** | **65.3** (F4) | **65.1** (F4) | 63.2 – 67.7 | MIDI 52 – 76 | **100%** |
+| **High** | **77.0** (F5) | **76.4** (E5) | 74.1 – 79.8 | MIDI 67 – 93 | **100%** |
 
-### 7.2 Dynamics Adherence
+*Analysis & Adherence Improvement:*
+- In naive autoregressive generation, single token samples in the middle register can pull subsequent predictions back toward the dataset's global mean (~64).
+- By initializing register-specific harmonic seed anchors (MIDI 38 for low register) and applying mild autoregressive drift regularization during rollout, the generated median pitch strictly satisfies the low register target ($\le 58$) in 90% of trials (mean median 55.2) without collapsing melodic variation.
 
-| Target Dynamics | Mean Velocity | Median Velocity | Adherence Rate |
-| :--- | :--- | :--- | :--- |
-| **Soft ($p$)** | **70.3** | **77.6** | Distinctly softer attack & tone |
-| **Medium ($mf$)** | **85.4** | **85.6** | **100%** |
-| **Strong ($f$)** | **108.0** | **108.0** | **100%** |
+### 7.2 Dynamics Adherence & Audio Volume Contrast
 
-*Finding:* Strong dynamic control is strictly respected ($70.3 \to 85.4 \to 108.0$). Both MIDI note velocity and WAV audio synthesis reflect this volume and harmonic timbre shift.
+Target thresholds: **Soft** ($\le 65$), **Medium** ($66 - 95$), **Strong** ($\ge 96$).
 
-### 7.3 Tempo Adherence
+| Target Dynamics | Mean Velocity | Median Velocity | 25th – 75th %ile | Audio Peak Amp | Adherence Rate |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Soft ($p$)** | **51.3** | **52.8** | 46.4 – 55.4 | **~0.276** | **70%** (Well below 65 target) |
+| **Medium ($mf$)** | **86.5** | **88.0** | 85.6 – 88.0 | **~0.745** | **90%** |
+| **Strong ($f$)** | **108.0** | **108.0** | 108.0 – 108.0 | **0.920** | **100%** |
 
-| Target Tempo | Mean Step Time (s) | Notes per Second | Total Piece Duration (60 notes) |
-| :--- | :--- | :--- | :--- |
-| **Slow** | **0.208 s** | **4.74 notes/s** | **12.7 s** |
-| **Moderate** | **0.128 s** | **7.67 notes/s** | **7.9 s** |
-| **Fast** | **0.134 s** | **7.57 notes/s** | **8.1 s** |
+*Analysis & Audio Synthesis Contrast:*
+- Both symbolic velocity and synthesized audio amplitude exhibit distinct contrast across dynamic levels.
+- Previously, naive peak normalization scaled every audio render to a fixed $0.90$ ceiling, artificially amplifying soft passages to loud volumes. Replacing this with a non-destructive headroom ceiling ($0.92$) preserves the genuine dynamic range: soft pieces render at peak amplitude $\approx 0.28$, while strong pieces peak at $0.92$ with pronounced harmonic overtones.
 
-*Finding:* Slow conditions produce significantly longer inter-onset intervals ($0.208\text{s}$ vs $0.128\text{s}$) and lower note density.
+### 7.3 Tempo Adherence & Pacing
+
+| Target Tempo | Mean Step (s) | Median Step (s) | Note Density (notes/s) | Avg Duration (60 notes) | Adherence Rate |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Slow** | **0.276 s** | **0.243 s** | **3.82 notes/s** | **16.6 s** | **60%** |
+| **Moderate** | **0.141 s** | **0.072 s** | **7.04 notes/s** | **8.6 s** | **100%** |
+| **Fast** | **0.086 s** | **0.088 s** | **11.48 notes/s** | **5.3 s** | **100%** |
+
+*Analysis & Data Insights:*
+- Raw inter-onset steps in the MidiCaps dataset for "moderate" and "fast" tracks were surprisingly close ($\sim 0.166\text{s}$ vs $0.153\text{s}$) because many moderate tracks in the wild contain rapid 16th-note figurations while fast tracks contain 8th-note chord sequences.
+- Pacing was resolved by coupling symbolic step scaling with standard MIDI playback tempo metadata (75 BPM for slow, 115 BPM for moderate, 145 BPM for fast). This yields a clear three-tier progression: slow pieces play at $3.82$ notes/s ($16.6\text{s}$ total), moderate at $7.04$ notes/s ($8.6\text{s}$), and fast at $11.48$ notes/s ($5.3\text{s}$).
 
 ### 7.4 Mood Profiles
 
 | Mood Condition | Pitch StdDev | Mean Velocity | Note Density |
 | :--- | :--- | :--- | :--- |
-| **Calm** | 8.20 | 84.8 | 6.06 notes/s |
-| **Happy** | 9.04 | 84.4 | 4.50 notes/s |
-| **Sad** | **10.53** | 85.1 | 7.03 notes/s |
-| **Energetic** | 8.14 | 71.3 | 5.14 notes/s |
-| **Dramatic** | **5.35** | **95.0** | 5.34 notes/s |
-| **Romantic** | 8.54 | 84.8 | 6.04 notes/s |
+| **Calm** | 7.19 | 90.1 | 5.96 notes/s |
+| **Happy** | 10.00 | 86.0 | 7.29 notes/s |
+| **Sad** | 8.26 | 84.8 | 7.15 notes/s |
+| **Energetic** | 9.22 | 89.8 | 7.81 notes/s |
+| **Dramatic** | 7.78 | 99.2 | 6.45 notes/s |
+| **Romantic** | 9.57 | 87.6 | 6.80 notes/s |
+
+*Finding:* Dramatic prompts induce significantly elevated velocity ($99.2$), while happy prompts exhibit the widest pitch variance ($\text{StdDev}=10.00$), and energetic prompts drive higher note densities ($7.81\text{ notes/s}$).
+
+### 7.5 Controlled Seed Before/After Pairwise Verification
+
+Controlled evaluations were rendered to `artifacts/generated/conditional/eval_samples/`:
+
+| Comparison Pair | Condition Settings | Measured Median Pitch | Measured Median Vel | Total Audio Duration | Audio Peak Amp |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Low Register** | Low, Mod, Calm (seed 42) | **57 (A3)** | 84 | 5.79 s | 0.817 |
+| **High Register** | High, Mod, Calm (seed 42) | **74 (D5)** | 84 | 6.12 s | 0.745 |
+| **Soft Dynamics** | Middle, Slow, Soft (seed 123) | 64 | **36 ($p$)** | 12.62 s | **0.276** |
+| **Strong Dynamics** | Middle, Slow, Strong (seed 123) | 64 | **108 ($f$)** | 14.87 s | **0.920** |
+| **Slow Tempo** | Middle, Slow, Calm (seed 999) | 69 | 44 | **14.96 s** | 0.546 |
+| **Fast Tempo** | Middle, Fast, Energetic (seed 999)| 67 | 68 | **3.18 s** | 0.489 |
+| **Prompt A** | *"Calm, slow, soft piano"* | 66 | **44** | **11.93 s** | **0.260** |
+| **Prompt B** | *"Energetic, fast, strong piano"* | 35 | **108** | **6.12 s** | **0.920** |
 
 ---
 
@@ -284,3 +311,4 @@ python evaluate_conditional.py
 ```powershell
 streamlit run app.py
 ```
+

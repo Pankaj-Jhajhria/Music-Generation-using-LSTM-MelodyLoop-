@@ -32,13 +32,14 @@ def evaluate_register_adherence(
     model: ConditionalMelodyLSTM,
     cfg: Config,
     device: torch.device,
-    num_runs: int = 5,
+    num_runs: int = 10,
     length: int = 60,
 ) -> Dict[str, Any]:
     """Evaluate adherence to low, middle, and high pitch registers."""
     results = {}
     for target_reg in ["low", "middle", "high"]:
         medians = []
+        means = []
         p25s = []
         p75s = []
         min_ps = []
@@ -56,7 +57,9 @@ def evaluate_register_adherence(
             )
             pitches = [n["pitch"] for n in notes]
             med = float(np.median(pitches))
+            mean_val = float(np.mean(pitches))
             medians.append(med)
+            means.append(mean_val)
             p25s.append(float(np.percentile(pitches, 25)))
             p75s.append(float(np.percentile(pitches, 75)))
             min_ps.append(min(pitches))
@@ -68,9 +71,10 @@ def evaluate_register_adherence(
 
         results[target_reg] = {
             "target": target_reg,
-            "mean_median_pitch": round(float(np.mean(medians)), 1),
-            "mean_p25_pitch": round(float(np.mean(p25s)), 1),
-            "mean_p75_pitch": round(float(np.mean(p75s)), 1),
+            "mean_pitch": round(float(np.mean(means)), 1),
+            "median_pitch": round(float(np.mean(medians)), 1),
+            "p25_pitch": round(float(np.mean(p25s)), 1),
+            "p75_pitch": round(float(np.mean(p75s)), 1),
             "overall_min_pitch": int(min(min_ps)),
             "overall_max_pitch": int(max(max_ps)),
             "adherence_rate": round(matches / num_runs, 2),
@@ -82,7 +86,7 @@ def evaluate_dynamics_adherence(
     model: ConditionalMelodyLSTM,
     cfg: Config,
     device: torch.device,
-    num_runs: int = 5,
+    num_runs: int = 10,
     length: int = 60,
 ) -> Dict[str, Any]:
     """Evaluate adherence to soft, medium, and strong dynamics."""
@@ -105,8 +109,9 @@ def evaluate_dynamics_adherence(
             )
             vels = [n["velocity"] for n in notes]
             med = float(np.median(vels))
+            mean_val = float(np.mean(vels))
             medians.append(med)
-            means.append(float(np.mean(vels)))
+            means.append(mean_val)
             p25s.append(float(np.percentile(vels, 25)))
             p75s.append(float(np.percentile(vels, 75)))
 
@@ -129,7 +134,7 @@ def evaluate_tempo_adherence(
     model: ConditionalMelodyLSTM,
     cfg: Config,
     device: torch.device,
-    num_runs: int = 5,
+    num_runs: int = 10,
     length: int = 60,
 ) -> Dict[str, Any]:
     """Evaluate adherence to slow, moderate, and fast tempo."""
@@ -137,7 +142,9 @@ def evaluate_tempo_adherence(
     for target_tempo in ["slow", "moderate", "fast"]:
         densities = []
         mean_steps = []
+        median_steps = []
         total_durations = []
+        matches = 0
 
         for seed in range(num_runs):
             notes = generate_conditional_melody(
@@ -153,13 +160,26 @@ def evaluate_tempo_adherence(
             density = len(notes) / max(total_dur, 1e-4)  # notes per second
             densities.append(density)
             steps = [n["step"] for n in notes]
-            mean_steps.append(float(np.mean(steps)))
+            mean_step = float(np.mean(steps))
+            med_step = float(np.median(steps))
+            mean_steps.append(mean_step)
+            median_steps.append(med_step)
+
+            # Classify speed based on onset step and density
+            if target_tempo == "slow" and (mean_step >= 0.25 or density <= 4.0):
+                matches += 1
+            elif target_tempo == "moderate" and (0.10 <= mean_step <= 0.25 or 4.0 < density <= 8.5):
+                matches += 1
+            elif target_tempo == "fast" and (mean_step < 0.12 or density > 8.5):
+                matches += 1
 
         results[target_tempo] = {
             "target": target_tempo,
             "mean_step_sec": round(float(np.mean(mean_steps)), 3),
+            "median_step_sec": round(float(np.mean(median_steps)), 3),
             "notes_per_second": round(float(np.mean(densities)), 2),
             "avg_sequence_duration_sec": round(float(np.mean(total_durations)), 1),
+            "adherence_rate": round(matches / num_runs, 2),
         }
     return results
 
@@ -271,35 +291,36 @@ def main():
     logger.info(f"Evaluation report saved to: {out_p}")
 
     # Print clean summary table
-    print("\n" + "=" * 65)
+    print("\n" + "=" * 70)
     print("CONDITION ADHERENCE EVALUATION SUMMARY")
-    print("=" * 65)
+    print("=" * 70)
     print("\n1. Pitch Register Adherence:")
-    print(f"{'Target':<10} | {'Median Pitch':<14} | {'Pitch Range':<15} | {'Adherence Rate':<14}")
-    print("-" * 60)
+    print(f"{'Target':<10} | {'Mean Pitch':<12} | {'Median Pitch':<14} | {'Pitch Range':<13} | {'Adherence':<10}")
+    print("-" * 68)
     for k, v in reg_results.items():
         prange = f"{v['overall_min_pitch']}-{v['overall_max_pitch']}"
-        print(f"{k:<10} | {v['mean_median_pitch']:<14} | {prange:<15} | {v['adherence_rate']*100:.0f}%")
+        print(f"{k:<10} | {v['mean_pitch']:<12} | {v['median_pitch']:<14} | {prange:<13} | {v['adherence_rate']*100:.0f}%")
 
     print("\n2. Dynamics Adherence:")
-    print(f"{'Target':<10} | {'Mean Velocity':<14} | {'Median Vel':<12} | {'Adherence Rate':<14}")
-    print("-" * 60)
+    print(f"{'Target':<10} | {'Mean Velocity':<14} | {'Median Vel':<12} | {'Adherence':<10}")
+    print("-" * 55)
     for k, v in dyn_results.items():
         print(f"{k:<10} | {v['mean_velocity']:<14} | {v['median_velocity']:<12} | {v['adherence_rate']*100:.0f}%")
 
     print("\n3. Tempo Adherence:")
-    print(f"{'Target':<10} | {'Mean Step (s)':<14} | {'Notes / sec':<14} | {'Avg Duration':<14}")
-    print("-" * 60)
+    print(f"{'Target':<10} | {'Mean Step (s)':<14} | {'Median Step':<12} | {'Notes / sec':<12} | {'Adherence':<10}")
+    print("-" * 68)
     for k, v in tempo_results.items():
-        print(f"{k:<10} | {v['mean_step_sec']:<14} | {v['notes_per_second']:<14} | {v['avg_sequence_duration_sec']}s")
+        print(f"{k:<10} | {v['mean_step_sec']:<14} | {v['median_step_sec']:<12} | {v['notes_per_second']:<12} | {v['adherence_rate']*100:.0f}%")
 
     print("\n4. Mood Profiles:")
     print(f"{'Mood':<12} | {'Pitch StdDev':<14} | {'Mean Vel':<10} | {'Notes / sec':<12}")
     print("-" * 55)
     for k, v in mood_results.items():
         print(f"{k:<12} | {v['pitch_std']:<14} | {v['mean_velocity']:<10} | {v['notes_per_second']}")
-    print("=" * 65 + "\n")
+    print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":
     main()
+
