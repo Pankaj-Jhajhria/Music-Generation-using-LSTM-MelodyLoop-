@@ -5,6 +5,7 @@ local audio playback, and side-by-side comparison with the real MAESTRO dataset.
 """
 
 from pathlib import Path
+import os
 import random
 import time
 import matplotlib.pyplot as plt
@@ -361,6 +362,26 @@ def main():
         if not cond_ckpt_path.exists():
             cond_ckpt_path = cfg.checkpoints_dir / "conditional" / "latest_conditional_model.pt"
 
+        # Safe Remote Checkpoint Auto-Download for Hosted Cloud Deployments
+        if not cond_ckpt_path.exists():
+            remote_url = None
+            try:
+                if hasattr(st, "secrets") and "MELODYLOOP_CONDITIONAL_CKPT_URL" in st.secrets:
+                    remote_url = st.secrets["MELODYLOOP_CONDITIONAL_CKPT_URL"]
+            except Exception:
+                pass
+            if not remote_url and "MELODYLOOP_CONDITIONAL_CKPT_URL" in os.environ:
+                remote_url = os.environ["MELODYLOOP_CONDITIONAL_CKPT_URL"]
+
+            if remote_url:
+                try:
+                    with st.spinner("Downloading MelodyLoop 2.0 conditional checkpoint (~2.4 MB)..."):
+                        import urllib.request
+                        cond_ckpt_path.parent.mkdir(parents=True, exist_ok=True)
+                        urllib.request.urlretrieve(remote_url, str(cond_ckpt_path))
+                except Exception as dl_err:
+                    st.warning(f"Unable to auto-download checkpoint from `{remote_url}`: {dl_err}")
+
         cond_model = None
         cond_ckpt_data = None
         cond_model_loaded = False
@@ -374,7 +395,39 @@ def main():
                 vl_str = f" | Val Loss: {vl:.4f}" if vl else ""
                 st.success(f"✓ Condition-Aware LSTM Loaded: `{cond_ckpt_path.name}` (Epoch {ep}{vl_str})")
         else:
-            st.warning("⚠️ No trained conditional model checkpoint found yet. Run `python train_conditional.py`.")
+            with st.expander("⚠️ Conditional Model Checkpoint Not Found (Deployment Helper)", expanded=True):
+                st.info(
+                    "**MelodyLoop 2.0** uses a custom 198k-parameter LSTM (`best_conditional_model.pt`, ~2.4 MB). "
+                    "In clean cloud deployments where weights are not tracked in Git, provide the checkpoint using any method below:"
+                )
+                col_dl1, col_dl2 = st.columns([1, 1])
+                with col_dl1:
+                    uploaded_pt = st.file_uploader("📥 Upload `best_conditional_model.pt` directly:", type=["pt"], key="up_cond_model")
+                    if uploaded_pt is not None:
+                        cond_target = cfg.checkpoints_dir / "conditional" / "best_conditional_model.pt"
+                        cond_target.parent.mkdir(parents=True, exist_ok=True)
+                        with open(cond_target, "wb") as f:
+                            f.write(uploaded_pt.getbuffer())
+                        st.success("✓ Checkpoint uploaded successfully! Reloading...")
+                        st.rerun()
+                with col_dl2:
+                    custom_url = st.text_input(
+                        "🌐 Or enter public download URL:",
+                        placeholder="https://.../best_conditional_model.pt",
+                        key="input_ckpt_url",
+                    )
+                    if st.button("⬇️ Download Checkpoint", key="btn_manual_dl") and custom_url.strip():
+                        with st.spinner("Downloading checkpoint (~2.4 MB)..."):
+                            try:
+                                import urllib.request
+                                cond_target = cfg.checkpoints_dir / "conditional" / "best_conditional_model.pt"
+                                cond_target.parent.mkdir(parents=True, exist_ok=True)
+                                urllib.request.urlretrieve(custom_url.strip(), str(cond_target))
+                                st.success("✓ Checkpoint downloaded successfully! Reloading...")
+                                st.rerun()
+                            except Exception as dl_err:
+                                st.error(f"Download failed: {dl_err}")
+                st.caption("💡 Local development: run `python train_conditional.py` to train from scratch.")
 
         input_mode = st.radio(
             "Specification Method:",
@@ -475,6 +528,8 @@ def main():
             st.session_state.cond_meta = None
 
         cond_gen_clicked = st.button("✨ Generate Conditional Melody", type="primary", disabled=not cond_model_loaded, key="btn_cond_gen")
+        if not cond_model_loaded:
+            st.caption("ℹ️ *Generation is disabled until `best_conditional_model.pt` is loaded, uploaded, or downloaded above.*")
 
         if cond_gen_clicked and cond_model_loaded:
             with st.spinner("Conditioning LSTM and generating musical events..."):

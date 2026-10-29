@@ -61,7 +61,8 @@ artifacts/generated/
 # Keep Model Checkpoints for Streamlit Deployment
 !artifacts/
 !artifacts/checkpoints/
-artifacts/checkpoints/conditional/
+artifacts/checkpoints/conditional/*
+!artifacts/checkpoints/conditional/best_conditional_model.pt
 artifacts/*.json
 !artifacts/checkpoints/best_model.pt
 !artifacts/checkpoints/best_model_expanded.pt
