@@ -42,6 +42,13 @@ from melodyloop.conditional_generation import (
     synthesize_conditional_audio,
 )
 from melodyloop.prompt_parser import parse_text_prompt, ParsedPrompt
+from melodyloop.ui_theme import (
+    CYBER_SYNTHWAVE_CSS,
+    PARTICLES_HTML,
+    HERO_BANNER_HTML,
+    render_status_pill,
+    render_target_conditions_card,
+)
 
 st.set_page_config(
     page_title="MelodyLoop — LSTM Music Generation",
@@ -106,13 +113,13 @@ def load_conditional_model_from_checkpoint(ckpt_path: Path, cfg: Config, device:
 
 
 def plot_conditional_piano_roll(notes: list[dict], title: str = "Conditional Piano-Roll (Velocity-Colored)"):
-    """Create a piano-roll visualization with notes colored and sized by velocity."""
+    """Create a cyber-styled piano-roll visualization with notes colored and sized by velocity."""
     fig, ax = plt.subplots(figsize=(10, 3.8), dpi=150)
-    fig.patch.set_facecolor("#0e1117")
-    ax.set_facecolor("#161b22")
+    fig.patch.set_facecolor("#070913")
+    ax.set_facecolor("#0d1122")
 
     if not notes:
-        ax.text(0.5, 0.5, "No notes available", color="#8b949e", ha="center", va="center")
+        ax.text(0.5, 0.5, "No notes available", color="#64748b", ha="center", va="center")
         return fig
 
     for n in notes:
@@ -121,38 +128,41 @@ def plot_conditional_piano_roll(notes: list[dict], title: str = "Conditional Pia
         pitch = n["pitch"]
         vel = n.get("velocity", 80)
 
-        # Color map from soft (cyan/teal) to strong (orange/red)
-        norm_vel = min(max(vel / 127.0, 0.2), 1.0)
+        # Cyber synthwave velocity palette: Soft (Cyan), Medium (Cosmic Purple), Strong (Electric Magenta)
+        norm_vel = min(max(vel / 127.0, 0.35), 1.0)
         if vel <= 65:
-            color = "#38bdf8"  # Soft sky blue
-            edgecolor = "#0284c7"
+            color = "#00f0ff"  # Electric Cyan (Soft)
+            edgecolor = "#38bdf8"
         elif vel <= 95:
-            color = "#fbbf24"  # Medium amber
-            edgecolor = "#d97706"
+            color = "#b026ff"  # Cosmic Violet (Medium)
+            edgecolor = "#d946ef"
         else:
-            color = "#f87171"  # Strong warm red
-            edgecolor = "#dc2626"
+            color = "#ff2a85"  # Hot Neon Rose (Strong)
+            edgecolor = "#f43f5e"
 
         ax.barh(
             y=pitch,
             width=dur,
             left=start,
-            height=0.75,
+            height=0.78,
             color=color,
             edgecolor=edgecolor,
             alpha=norm_vel,
+            linewidth=0.8,
         )
 
-    ax.set_title(title, color="#c9d1d9", fontsize=11, pad=10)
-    ax.set_xlabel("Time (seconds)", color="#c9d1d9", fontsize=10)
-    ax.set_ylabel("MIDI Pitch (0-127)", color="#c9d1d9", fontsize=10)
-    ax.tick_params(colors="#8b949e")
-    ax.grid(True, linestyle="--", alpha=0.2, color="#8b949e")
+    ax.set_title(title, color="#f8fafc", fontsize=11, fontweight="bold", pad=10)
+    ax.set_xlabel("Time (seconds)", color="#94a3b8", fontsize=10)
+    ax.set_ylabel("MIDI Pitch (0-127)", color="#94a3b8", fontsize=10)
+    ax.tick_params(colors="#94a3b8")
+    for spine in ax.spines.values():
+        spine.set_color("#1e293b")
+    ax.grid(True, linestyle="--", alpha=0.18, color="#334155")
 
     # Draw Register Boundaries
-    ax.axhline(58, color="#a855f7", linestyle="--", alpha=0.4, label="Low / Mid Boundary (D4=58)")
-    ax.axhline(60, color="#8b949e", linestyle=":", alpha=0.5, label="Middle C (60)")
-    ax.axhline(72, color="#ec4899", linestyle="--", alpha=0.4, label="Mid / High Boundary (C5=72)")
+    ax.axhline(58, color="#00ffb3", linestyle="--", alpha=0.6, label="Low / Mid Boundary (D4=58)")
+    ax.axhline(60, color="#64748b", linestyle=":", alpha=0.5, label="Middle C (60)")
+    ax.axhline(72, color="#ec4899", linestyle="--", alpha=0.6, label="Mid / High Boundary (C5=72)")
 
     pitches = [n["pitch"] for n in notes]
     min_p = max(0, min(pitches) - 4)
@@ -161,20 +171,20 @@ def plot_conditional_piano_roll(notes: list[dict], title: str = "Conditional Pia
 
     max_time = max(n["start"] + n["duration"] for n in notes) + 0.5
     ax.set_xlim(0, max_time)
-    ax.legend(loc="upper right", facecolor="#161b22", edgecolor="#30363d", labelcolor="#c9d1d9", fontsize=7)
+    ax.legend(loc="upper right", facecolor="#070913", edgecolor="#1e293b", labelcolor="#cbd5e1", fontsize=7.5)
 
     plt.tight_layout()
     return fig
 
 
 def plot_piano_roll(notes: list[dict], title: str = "Piano-Roll Visualization"):
-    """Create a piano-roll scatter/bar plot of notes with prompt vs continuation distinction."""
+    """Create a cyber-styled piano-roll bar plot of notes with prompt vs continuation distinction."""
     fig, ax = plt.subplots(figsize=(10, 3.8), dpi=150)
-    fig.patch.set_facecolor("#0e1117")
-    ax.set_facecolor("#161b22")
+    fig.patch.set_facecolor("#070913")
+    ax.set_facecolor("#0d1122")
 
     if not notes:
-        ax.text(0.5, 0.5, "No notes available", color="#8b949e", ha="center", va="center")
+        ax.text(0.5, 0.5, "No notes available", color="#64748b", ha="center", va="center")
         return fig
 
     seed_labeled = False
@@ -187,13 +197,13 @@ def plot_piano_roll(notes: list[dict], title: str = "Piano-Roll Visualization"):
         is_seed = n.get("is_seed", False)
 
         if is_seed:
-            color = "#f0883e"
-            edgecolor = "#d97706"
+            color = "#00ffb3"  # Neon Emerald for Real Seed Prompt
+            edgecolor = "#10b981"
             label = "Real Prompt Phrase" if not seed_labeled else None
             seed_labeled = True
         else:
-            color = "#58a6ff"
-            edgecolor = "#1f6feb"
+            color = "#00f0ff"  # Electric Cyan for LSTM continuation
+            edgecolor = "#0284c7"
             label = "LSTM Continuation" if not gen_labeled else None
             gen_labeled = True
 
@@ -204,15 +214,18 @@ def plot_piano_roll(notes: list[dict], title: str = "Piano-Roll Visualization"):
             height=0.8,
             color=color,
             edgecolor=edgecolor,
-            alpha=0.88,
+            alpha=0.9,
+            linewidth=0.8,
             label=label,
         )
 
-    ax.set_title(title, color="#c9d1d9", fontsize=11, pad=10)
-    ax.set_xlabel("Time (seconds)", color="#c9d1d9", fontsize=10)
-    ax.set_ylabel("MIDI Pitch (0-127)", color="#c9d1d9", fontsize=10)
-    ax.tick_params(colors="#8b949e")
-    ax.grid(True, linestyle="--", alpha=0.2, color="#8b949e")
+    ax.set_title(title, color="#f8fafc", fontsize=11, fontweight="bold", pad=10)
+    ax.set_xlabel("Time (seconds)", color="#94a3b8", fontsize=10)
+    ax.set_ylabel("MIDI Pitch (0-127)", color="#94a3b8", fontsize=10)
+    ax.tick_params(colors="#94a3b8")
+    for spine in ax.spines.values():
+        spine.set_color("#1e293b")
+    ax.grid(True, linestyle="--", alpha=0.18, color="#334155")
 
     # Set pitch bounds
     pitches = [n["pitch"] for n in notes]
@@ -224,8 +237,8 @@ def plot_piano_roll(notes: list[dict], title: str = "Piano-Roll Visualization"):
     ax.set_xlim(0, max_time)
 
     # Reference Middle C (60)
-    ax.axhline(60, color="#8b949e", linestyle=":", alpha=0.4, label="Middle C (60)")
-    ax.legend(loc="upper right", facecolor="#161b22", edgecolor="#30363d", labelcolor="#c9d1d9", fontsize=8)
+    ax.axhline(60, color="#64748b", linestyle=":", alpha=0.5, label="Middle C (60)")
+    ax.legend(loc="upper right", facecolor="#070913", edgecolor="#1e293b", labelcolor="#cbd5e1", fontsize=8)
 
     plt.tight_layout()
     return fig
@@ -278,20 +291,15 @@ def extract_clip_from_midi(midi_path: Path, cfg: Config, notes_count: int = 80):
 def main():
     cfg = Config()
 
-    # Header & educational overview
-    st.title("🎵 MelodyLoop: Music Generation Using an LSTM")
-    st.markdown(
-        """
-        **MelodyLoop** is an educational deep learning project demonstrating how a custom 
-        **Long Short-Term Memory (LSTM)** neural network learns temporal musical patterns 
-        from MAESTRO piano performances and generates new sequential music.
-        """
-    )
+    # Inject Cyber Synthwave theme & animated floating particles
+    st.markdown(CYBER_SYNTHWAVE_CSS, unsafe_allow_html=True)
+    st.markdown(PARTICLES_HTML, unsafe_allow_html=True)
+    st.markdown(HERO_BANNER_HTML, unsafe_allow_html=True)
 
     # Sidebar: Model status and hardware info
     st.sidebar.header("⚙️ System & Model Status")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    st.sidebar.info(f"**Compute Device:** `{device.upper()}`")
+    st.sidebar.markdown(render_status_pill(f"Compute Device: {device.upper()}", "cyan"), unsafe_allow_html=True)
     if device == "cuda":
         st.sidebar.caption(f"GPU: {torch.cuda.get_device_name(0)}")
 
@@ -329,7 +337,7 @@ def main():
         model, ckpt_data = load_model_from_checkpoint(ckpt_path, cfg, device)
         if model is not None:
             model_loaded = True
-            st.sidebar.success(f"✓ Checkpoint Active: `{ckpt_path.name}`")
+            st.sidebar.markdown(render_status_pill(f"Active Checkpoint: {ckpt_path.name}", "success"), unsafe_allow_html=True)
             col_ep, col_loss = st.sidebar.columns(2)
             with col_ep:
                 st.metric("Trained Epoch", ckpt_data.get("epoch", "N/A"))
@@ -373,7 +381,7 @@ def main():
     # TAB 1: Conditional & Prompt Generator (v2.0)
     # -------------------------------------------------------------
     with tab_cond:
-        st.subheader("🎛️ Conditional & Prompt-Based Music Generation")
+        st.markdown('<h2 style="font-family: Orbitron, sans-serif; font-size: 1.55rem; color: #00f0ff; letter-spacing: 1px; margin-top: 10px;">🎛️ CONDITIONAL & PROMPT-BASED GENERATION</h2>', unsafe_allow_html=True)
         st.markdown(
             """
             MelodyLoop 2.0 uses a **Condition-Aware LSTM** trained from scratch on the **MidiCaps** dataset.
@@ -417,7 +425,7 @@ def main():
                 ep = cond_ckpt_data.get("epoch", "N/A")
                 vl = cond_ckpt_data.get("val_loss", None)
                 vl_str = f" | Val Loss: {vl:.4f}" if vl else ""
-                st.success(f"✓ Condition-Aware LSTM Loaded: `{cond_ckpt_path.name}` (Epoch {ep}{vl_str})")
+                st.markdown(render_status_pill(f"Condition-Aware LSTM Loaded: {cond_ckpt_path.name} (Epoch {ep}{vl_str})", "success"), unsafe_allow_html=True)
         else:
             with st.expander("⚠️ Conditional Model Checkpoint Not Found (Deployment Helper)", expanded=True):
                 st.info(
@@ -527,10 +535,15 @@ def main():
         else:
             playback_bpm = 115
 
-        st.caption(
-            f"🎯 **Active Target Conditions for Model:** Mood: `{final_m.upper()}` | "
-            f"Tempo: `{final_t.upper()}` ({playback_bpm} BPM) | "
-            f"Register: `{final_r.upper()}` | Dynamics: `{final_d.upper()}`"
+        st.markdown(
+            render_target_conditions_card(
+                mood=final_m,
+                tempo=final_t,
+                bpm=playback_bpm,
+                register=final_r,
+                dynamics=final_d,
+            ),
+            unsafe_allow_html=True,
         )
 
         # Hyperparameters
@@ -666,7 +679,7 @@ def main():
     # TAB 2: MAESTRO Baseline Generator
     # -------------------------------------------------------------
     with tab_gen:
-        st.subheader("🎼 MAESTRO Baseline Melody Generator")
+        st.markdown('<h2 style="font-family: Orbitron, sans-serif; font-size: 1.55rem; color: #b026ff; letter-spacing: 1px; margin-top: 10px;">🎼 MAESTRO BASELINE MELODY GENERATOR</h2>', unsafe_allow_html=True)
 
         mode = st.radio(
             "Generation Mode:",
@@ -819,7 +832,7 @@ def main():
     # TAB 2: Compare Human Dataset vs LSTM Generator
     # -------------------------------------------------------------
     with tab_compare:
-        st.subheader("🎹 Compare Real Dataset Music vs LSTM Generated Music")
+        st.markdown('<h2 style="font-family: Orbitron, sans-serif; font-size: 1.55rem; color: #ec4899; letter-spacing: 1px; margin-top: 10px;">🎹 HUMAN VS LSTM COMPARISON</h2>', unsafe_allow_html=True)
         st.markdown(
             """
             Compare human piano performances from the **MAESTRO dataset** directly against the 
