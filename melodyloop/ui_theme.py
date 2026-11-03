@@ -422,6 +422,31 @@ audio {
 /* ==============================================================================
    9. SIDEBAR STYLING
    ============================================================================== */
+
+/* Sidebar collapsed control toggle button (MuseGuide-inspired glowing pill) */
+div[data-testid="stSidebarCollapsedControl"],
+div[data-testid="collapsedControl"] {
+    display: block !important;
+}
+div[data-testid="stSidebarCollapsedControl"] button,
+div[data-testid="collapsedControl"] button,
+button[data-testid="stSidebarCollapseButton"] {
+    background: rgba(13, 17, 34, 0.88) !important;
+    border: 1px solid rgba(0, 240, 255, 0.45) !important;
+    border-radius: 8px !important;
+    color: #00f0ff !important;
+    box-shadow: 0 0 14px rgba(0, 240, 255, 0.35) !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+div[data-testid="stSidebarCollapsedControl"] button:hover,
+div[data-testid="collapsedControl"] button:hover,
+button[data-testid="stSidebarCollapseButton"]:hover {
+    border-color: #00f0ff !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 22px rgba(0, 240, 255, 0.8), 0 0 35px rgba(176, 38, 255, 0.45) !important;
+    transform: scale(1.06);
+}
+
 section[data-testid="stSidebar"] {
     background: rgba(8, 10, 20, 0.92) !important;
     border-right: 1px solid rgba(0, 240, 255, 0.15) !important;
