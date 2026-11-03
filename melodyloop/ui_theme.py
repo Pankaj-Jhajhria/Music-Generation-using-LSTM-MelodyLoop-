@@ -413,10 +413,89 @@ div[data-testid="stRadio"] label {
     color: #cbd5e1 !important;
 }
 
-/* Audio preview */
+/* ==============================================================================
+   AUDIO PLAYER CYBER DECK & NATIVE CONTROLS STYLING
+   ============================================================================== */
+.audio-eq-wave {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 14px;
+    margin-right: 4px;
+}
+.audio-eq-wave span {
+    width: 3px;
+    border-radius: 1.5px;
+    background: linear-gradient(180deg, #00f0ff, #b026ff);
+    box-shadow: 0 0 6px #00f0ff;
+    animation: eqMiniBounce 1.1s ease-in-out infinite alternate;
+}
+.audio-eq-wave span:nth-child(1) { height: 6px; animation-delay: 0.1s; }
+.audio-eq-wave span:nth-child(2) { height: 13px; animation-delay: 0.35s; }
+.audio-eq-wave span:nth-child(3) { height: 14px; animation-delay: 0.0s; }
+.audio-eq-wave span:nth-child(4) { height: 9px; animation-delay: 0.45s; }
+.audio-eq-wave span:nth-child(5) { height: 5px; animation-delay: 0.2s; }
+
+@keyframes eqMiniBounce {
+    0% { height: 4px; opacity: 0.45; }
+    50% { height: 14px; opacity: 1.0; }
+    100% { height: 6px; opacity: 0.65; }
+}
+
+/* Native audio element enhancements */
 audio {
-    border-radius: 25px !important;
-    filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.35)) !important;
+    width: 100% !important;
+    height: 46px !important;
+    border-radius: 28px !important;
+    outline: none !important;
+    box-shadow: 0 0 18px rgba(0, 240, 255, 0.35), 0 0 35px rgba(176, 38, 255, 0.15) !important;
+    transition: all 0.25s ease !important;
+}
+audio:hover {
+    box-shadow: 0 0 25px rgba(0, 240, 255, 0.55), 0 0 45px rgba(176, 38, 255, 0.3) !important;
+}
+
+/* WebKit media controls styling (Chrome, Brave, Edge) */
+audio::-webkit-media-controls-panel {
+    background: linear-gradient(135deg, rgba(9, 13, 31, 0.98) 0%, rgba(18, 24, 52, 0.95) 100%) !important;
+    border: 1px solid rgba(0, 240, 255, 0.35) !important;
+    border-radius: 28px !important;
+    box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.12) !important;
+}
+
+audio::-webkit-media-controls-current-time-display,
+audio::-webkit-media-controls-time-remaining-display {
+    color: #00f0ff !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-weight: 600 !important;
+    font-size: 11.5px !important;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.7) !important;
+}
+
+audio::-webkit-media-controls-play-button {
+    filter: invert(1) hue-rotate(170deg) drop-shadow(0 0 8px #00f0ff) !important;
+    transform: scale(1.1) !important;
+    transition: transform 0.2s ease !important;
+}
+audio::-webkit-media-controls-play-button:hover {
+    transform: scale(1.22) !important;
+}
+
+audio::-webkit-media-controls-timeline {
+    filter: invert(0.85) sepia(1) saturate(6) hue-rotate(145deg) drop-shadow(0 0 6px rgba(0, 240, 255, 0.6)) !important;
+    border-radius: 10px !important;
+}
+
+audio::-webkit-media-controls-mute-button {
+    filter: invert(1) hue-rotate(170deg) drop-shadow(0 0 4px #00f0ff) !important;
+}
+
+audio::-webkit-media-controls-volume-slider {
+    filter: invert(0.85) sepia(1) saturate(6) hue-rotate(145deg) drop-shadow(0 0 4px rgba(0, 240, 255, 0.5)) !important;
+}
+
+audio::-webkit-media-controls-overflow-button {
+    filter: invert(1) hue-rotate(170deg) drop-shadow(0 0 4px #00f0ff) !important;
 }
 
 /* ==============================================================================
@@ -528,3 +607,20 @@ def render_target_conditions_card(mood: str, tempo: str, bpm: int, register: str
 </div>
 """
 
+
+
+def render_audio_player_header(title: str = "Audio Playback", subtitle: str = "VELOCITY-AWARE STEREO &bull; 44.1 kHz") -> str:
+    """Render a futuristic audio deck header with animated mini equalizer bars."""
+    return f"""
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+    <div style="font-family: 'Orbitron', sans-serif; font-size: 0.84rem; font-weight: 700; letter-spacing: 1px; color: #00f0ff; display: inline-flex; align-items: center; gap: 8px; text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);">
+        <span class="audio-eq-wave">
+            <span></span><span></span><span></span><span></span><span></span>
+        </span>
+        <span>{title.upper()}</span>
+    </div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #94a3b8; background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.22); border-radius: 12px; padding: 2px 8px;">
+        {subtitle}
+    </div>
+</div>
+"""

@@ -48,6 +48,7 @@ from melodyloop.ui_theme import (
     HERO_BANNER_HTML,
     render_status_pill,
     render_target_conditions_card,
+    render_audio_player_header,
 )
 
 st.set_page_config(
@@ -629,7 +630,7 @@ def main():
             # Audio Player & Downloads
             ac1, ac2, ac3 = st.columns([2, 1, 1])
             with ac1:
-                st.write("**🔊 Audio Playback (Velocity-Synthesized Preview):**")
+                st.markdown(render_audio_player_header("Audio Playback", "VELOCITY-AWARE SYNTHESIS • 44.1 kHz"), unsafe_allow_html=True)
                 st.audio(st.session_state.cond_wav_bytes, format="audio/wav")
             with ac2:
                 st.write("")
@@ -802,8 +803,7 @@ def main():
             m3.metric("Pitch Range", f"{min(pitches)} - {max(pitches)}")
             m4.metric("Avg Pitch Step", f"{avg_jump:.1f} semitones")
 
-            st.subheader("🔊 Audio Preview")
-            st.caption("Rendered using lightweight local harmonic synthesis.")
+            st.markdown(render_audio_player_header("Harmonic Piano Synthesis", "AUTOREGRESSIVE LSTM • 44.1 kHz"), unsafe_allow_html=True)
             if st.session_state.wav_bytes:
                 st.audio(st.session_state.wav_bytes, format="audio/wav")
 
@@ -906,7 +906,7 @@ def main():
                 m1.metric("Human Notes", len(ds["notes"]))
                 m2.metric("Duration", f"{dur_h:.1f} s")
 
-                st.write("**🔊 Audio Playback (Human Performance Clip):**")
+                st.markdown(render_audio_player_header("MAESTRO Performance Clip", "HUMAN PIANIST • STEREO"), unsafe_allow_html=True)
                 st.audio(ds["wav_bytes"], format="audio/wav")
 
                 st.download_button(
@@ -935,7 +935,7 @@ def main():
                 m1.metric("LSTM Notes", len(notes_gen))
                 m2.metric("Duration", f"{dur_l:.1f} s")
 
-                st.write("**🔊 Audio Playback (LSTM Model Output):**")
+                st.markdown(render_audio_player_header("LSTM Model Output", "AUTOREGRESSIVE CONTINUATION"), unsafe_allow_html=True)
                 st.audio(st.session_state.wav_bytes, format="audio/wav")
 
                 st.download_button(
