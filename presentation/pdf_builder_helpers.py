@@ -29,10 +29,11 @@ from reportlab.platypus import (
 from pdf_canvas import NumberedCanvas
 
 BASE_DIR = Path(__file__).resolve().parent
-DOCS_DIR = BASE_DIR / "docs"
+PROJECT_ROOT = BASE_DIR.parent
+DOCS_DIR = PROJECT_ROOT / "docs"
 DOCS_DIR.mkdir(parents=True, exist_ok=True)
 PDF_OUTPUT_PATH = DOCS_DIR / "MelodyLoop_Full_Workflow_Guide.pdf"
-FIG_DIR = BASE_DIR / "artifacts" / "doc_figures"
+FIG_DIR = PROJECT_ROOT / "artifacts" / "doc_figures"
 
 # ------------------------------------------------------------------------------
 # Typography & Color Palette

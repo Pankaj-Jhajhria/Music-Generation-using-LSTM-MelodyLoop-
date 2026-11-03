@@ -36,12 +36,15 @@ GREEN_ACCENT = RGBColor(22, 163, 74)      # #16A34A Green-600 Success Accent
 FONT_NAME = "Segoe UI"
 FONT_TITLE = "Segoe UI"
 
-ASSETS_DIR = Path("artifacts/presentation_assets")
-OUTPUT_PPTX = Path("MelodyLoop_Presentation_Professional.pptx")
-NOTES_MD_PATH = Path("docs/MelodyLoop_Presentation_Speaker_Notes.md")
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+
+ASSETS_DIR = PROJECT_ROOT / "artifacts" / "presentation_assets"
+OUTPUT_PPTX = BASE_DIR / "MelodyLoop_Presentation_Professional.pptx"
+NOTES_MD_PATH = PROJECT_ROOT / "docs" / "MelodyLoop_Presentation_Speaker_Notes.md"
 
 # Ensure assets exist
-assert (ASSETS_DIR / "fig_piano_keyboard.png").exists(), "Assets must be pre-generated."
+assert (ASSETS_DIR / "fig_piano_keyboard.png").exists(), f"Assets must be pre-generated at {ASSETS_DIR}."
 
 
 class SlideDeckBuilder:

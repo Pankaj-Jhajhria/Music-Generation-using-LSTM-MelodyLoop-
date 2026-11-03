@@ -19,7 +19,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 
-FIGURES_DIR = Path("artifacts/doc_figures")
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+FIGURES_DIR = PROJECT_ROOT / "artifacts" / "doc_figures"
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 plt.rcParams["font.sans-serif"] = "DejaVu Sans"

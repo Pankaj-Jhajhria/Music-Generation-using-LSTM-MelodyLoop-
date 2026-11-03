@@ -37,7 +37,10 @@ RED_ACCENT = RGBColor(225, 29, 72)        # #E11D48 Rose / Alert
 
 FONT_NAME = "Calibri"
 
-ASSETS_DIR = Path("artifacts/presentation_assets")
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+
+ASSETS_DIR = PROJECT_ROOT / "artifacts" / "presentation_assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -891,7 +894,7 @@ def main():
     build_learnings_and_future_slide(prs)
     build_conclusion_slide(prs)
 
-    out_pptx = Path("MelodyLoop_Presentation.pptx")
+    out_pptx = BASE_DIR / "MelodyLoop_Presentation.pptx"
     prs.save(str(out_pptx))
     print(f"Presentation successfully saved to: {out_pptx.resolve()}")
 

@@ -7,11 +7,17 @@ Computes musical statistics (pitch range, jumps, repetition rate, duration, step
 and compares against real held-out MAESTRO ground-truth performances.
 """
 
+import sys
 from pathlib import Path
 import json
 import numpy as np
 import torch
 import pandas as pd
+
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import Config
 from melodyloop.audio import synthesize_notes_to_wav

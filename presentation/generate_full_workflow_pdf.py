@@ -8,6 +8,13 @@ import sys
 import time
 from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate
 
@@ -43,8 +50,7 @@ from build_chapters_16_to_20 import (
     build_chapter_20,
 )
 
-BASE_DIR = Path(__file__).resolve().parent
-DOCS_DIR = BASE_DIR / "docs"
+DOCS_DIR = PROJECT_ROOT / "docs"
 DOCS_DIR.mkdir(parents=True, exist_ok=True)
 PDF_OUTPUT_PATH = DOCS_DIR / "MelodyLoop_Full_Workflow_Guide.pdf"
 

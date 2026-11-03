@@ -13,7 +13,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 
-ASSETS_DIR = Path("artifacts/presentation_assets")
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+ASSETS_DIR = PROJECT_ROOT / "artifacts" / "presentation_assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 plt.rcParams["font.sans-serif"] = "DejaVu Sans"
