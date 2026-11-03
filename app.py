@@ -49,6 +49,7 @@ from melodyloop.ui_theme import (
     render_status_pill,
     render_target_conditions_card,
     render_audio_player_header,
+    render_piano_roll_header,
 )
 
 st.set_page_config(
@@ -114,133 +115,220 @@ def load_conditional_model_from_checkpoint(ckpt_path: Path, cfg: Config, device:
     return model, checkpoint
 
 
+PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+
 def plot_conditional_piano_roll(notes: list[dict], title: str = "Conditional Piano-Roll (Velocity-Colored)"):
-    """Create a cyber-styled piano-roll visualization with notes colored and sized by velocity."""
-    fig, ax = plt.subplots(figsize=(10, 3.8), dpi=150)
+    """Create a radiant cyber-synthwave piano-roll visualization with neon glowing notes and zebra striping."""
+    fig, ax = plt.subplots(figsize=(10, 4.0), dpi=150)
     fig.patch.set_facecolor("#070913")
-    ax.set_facecolor("#0d1122")
+    ax.set_facecolor("#0a0e22")
 
     if not notes:
         ax.text(0.5, 0.5, "No notes available", color="#64748b", ha="center", va="center")
         return fig
 
+    pitches = [n["pitch"] for n in notes]
+    min_p = max(0, min(pitches) - 4)
+    max_p = min(127, max(pitches) + 4)
+    max_time = max(n["start"] + n["duration"] for n in notes) + 0.5
+
+    # 1. Subtle piano key zebra striping (darker for black keys)
+    for p in range(int(min_p), int(max_p) + 1):
+        is_black = (p % 12) in [1, 3, 6, 8, 10]
+        row_bg = "#070b18" if is_black else "#0e1328"
+        ax.axhspan(p - 0.5, p + 0.5, facecolor=row_bg, alpha=0.7, zorder=0)
+
+    # 2. Ambient register zone shading
+    if min_p <= 58:
+        ax.axhspan(min_p - 0.5, min(58.5, max_p + 0.5), facecolor="#00ffb3", alpha=0.035, zorder=1)
+    if max_p >= 72:
+        ax.axhspan(max(71.5, min_p - 0.5), max_p + 0.5, facecolor="#ec4899", alpha=0.035, zorder=1)
+
+    # 3. Dual-layer radiant neon notes (soft glow halo + bright core note)
     for n in notes:
         start = n["start"]
-        dur = max(0.05, n["duration"])
+        dur = max(0.06, n["duration"])
         pitch = n["pitch"]
         vel = n.get("velocity", 80)
 
-        # Cyber synthwave velocity palette: Soft (Cyan), Medium (Cosmic Purple), Strong (Electric Magenta)
-        norm_vel = min(max(vel / 127.0, 0.35), 1.0)
+        # Dynamic Cyber Synthwave Palette
         if vel <= 65:
-            color = "#00f0ff"  # Electric Cyan (Soft)
-            edgecolor = "#38bdf8"
+            core_color = "#00f0ff"  # Electric Cyan (Soft)
+            glow_color = "#00f0ff"
+            edge_color = "#e0fcff"
         elif vel <= 95:
-            color = "#b026ff"  # Cosmic Violet (Medium)
-            edgecolor = "#d946ef"
+            core_color = "#b026ff"  # Radiant Cosmic Violet (Medium)
+            glow_color = "#d946ef"
+            edge_color = "#f5d0fe"
         else:
-            color = "#ff2a85"  # Hot Neon Rose (Strong)
-            edgecolor = "#f43f5e"
+            core_color = "#ff0077"  # Hot Neon Rose (Strong)
+            glow_color = "#ff0077"
+            edge_color = "#ffe4e6"
 
+        # Outer soft glow halo
+        ax.barh(
+            y=pitch,
+            width=dur + 0.08,
+            left=max(0, start - 0.04),
+            height=0.92,
+            color=glow_color,
+            alpha=0.32,
+            edgecolor="none",
+            zorder=3,
+        )
+        # Inner crisp vibrant core
         ax.barh(
             y=pitch,
             width=dur,
             left=start,
-            height=0.78,
-            color=color,
-            edgecolor=edgecolor,
-            alpha=norm_vel,
-            linewidth=0.8,
+            height=0.75,
+            color=core_color,
+            edgecolor=edge_color,
+            linewidth=0.9,
+            alpha=0.95,
+            zorder=4,
         )
 
-    ax.set_title(title, color="#f8fafc", fontsize=11, fontweight="bold", pad=10)
-    ax.set_xlabel("Time (seconds)", color="#94a3b8", fontsize=10)
-    ax.set_ylabel("MIDI Pitch (0-127)", color="#94a3b8", fontsize=10)
+    # 4. Register boundaries with clean labels
+    ax.axhline(58, color="#00ffb3", linestyle="--", linewidth=1.2, alpha=0.75, label="Low / Mid Boundary (D4=58)", zorder=2)
+    ax.axhline(60, color="#64748b", linestyle=":", linewidth=1.1, alpha=0.6, label="Middle C (60)", zorder=2)
+    ax.axhline(72, color="#ec4899", linestyle="--", linewidth=1.2, alpha=0.75, label="Mid / High Boundary (C5=72)", zorder=2)
+
+    ax.set_ylim(min_p - 0.5, max_p + 0.5)
+    ax.set_xlim(0, max_time)
+
+    # 5. Smart Pitch Ticks with Musical Note Names (e.g. C4 (60), E4 (64))
+    step = 4 if (max_p - min_p) > 20 else 2
+    yticks = [p for p in range(int(min_p), int(max_p) + 1) if p % step == 0 or p == 60]
+    ytick_labels = [f"{PITCH_NAMES[p%12]}{(p//12)-1} ({p})" for p in yticks]
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(ytick_labels, fontsize=8, color="#94a3b8")
+
+    ax.set_title(title, color="#f8fafc", fontsize=11, fontweight="bold", pad=28)
+    ax.set_xlabel("Time (seconds)", color="#94a3b8", fontsize=9.5)
+    ax.set_ylabel("Musical Pitch (Key / MIDI)", color="#94a3b8", fontsize=9.5)
     ax.tick_params(colors="#94a3b8")
     for spine in ax.spines.values():
         spine.set_color("#1e293b")
-    ax.grid(True, linestyle="--", alpha=0.18, color="#334155")
+    ax.grid(True, linestyle=":", alpha=0.22, color="#00f0ff", zorder=1)
 
-    # Draw Register Boundaries
-    ax.axhline(58, color="#00ffb3", linestyle="--", alpha=0.6, label="Low / Mid Boundary (D4=58)")
-    ax.axhline(60, color="#64748b", linestyle=":", alpha=0.5, label="Middle C (60)")
-    ax.axhline(72, color="#ec4899", linestyle="--", alpha=0.6, label="Mid / High Boundary (C5=72)")
-
-    pitches = [n["pitch"] for n in notes]
-    min_p = max(0, min(pitches) - 4)
-    max_p = min(127, max(pitches) + 4)
-    ax.set_ylim(min_p, max_p)
-
-    max_time = max(n["start"] + n["duration"] for n in notes) + 0.5
-    ax.set_xlim(0, max_time)
-    ax.legend(loc="upper right", facecolor="#070913", edgecolor="#1e293b", labelcolor="#cbd5e1", fontsize=7.5)
+    # Position legend above plot cleanly to prevent note occlusion
+    ax.legend(
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.02),
+        ncol=3,
+        frameon=True,
+        facecolor="#070913",
+        edgecolor="#1e293b",
+        labelcolor="#cbd5e1",
+        fontsize=7.8,
+    )
 
     plt.tight_layout()
     return fig
 
 
 def plot_piano_roll(notes: list[dict], title: str = "Piano-Roll Visualization"):
-    """Create a cyber-styled piano-roll bar plot of notes with prompt vs continuation distinction."""
-    fig, ax = plt.subplots(figsize=(10, 3.8), dpi=150)
+    """Create a radiant cyber-synthwave piano-roll bar plot with prompt vs continuation distinction."""
+    fig, ax = plt.subplots(figsize=(10, 4.0), dpi=150)
     fig.patch.set_facecolor("#070913")
-    ax.set_facecolor("#0d1122")
+    ax.set_facecolor("#0a0e22")
 
     if not notes:
         ax.text(0.5, 0.5, "No notes available", color="#64748b", ha="center", va="center")
         return fig
+
+    pitches = [n["pitch"] for n in notes]
+    min_p = max(0, min(pitches) - 3)
+    max_p = min(127, max(pitches) + 3)
+    max_time = max(n["start"] + n["duration"] for n in notes) + 0.5
+
+    # Zebra striping
+    for p in range(int(min_p), int(max_p) + 1):
+        is_black = (p % 12) in [1, 3, 6, 8, 10]
+        row_bg = "#070b18" if is_black else "#0e1328"
+        ax.axhspan(p - 0.5, p + 0.5, facecolor=row_bg, alpha=0.7, zorder=0)
 
     seed_labeled = False
     gen_labeled = False
 
     for n in notes:
         start = n["start"]
-        dur = max(0.05, n["duration"])
+        dur = max(0.06, n["duration"])
         pitch = n["pitch"]
         is_seed = n.get("is_seed", False)
 
         if is_seed:
-            color = "#00ffb3"  # Neon Emerald for Real Seed Prompt
-            edgecolor = "#10b981"
+            core_color = "#00ffb3"  # Neon Emerald for Real Seed Prompt Context
+            glow_color = "#00ffb3"
+            edge_color = "#d1fae5"
             label = "Real Prompt Phrase" if not seed_labeled else None
             seed_labeled = True
         else:
-            color = "#00f0ff"  # Electric Cyan for LSTM continuation
-            edgecolor = "#0284c7"
+            core_color = "#00f0ff"  # Electric Cyan for LSTM continuation
+            glow_color = "#00f0ff"
+            edge_color = "#e0fcff"
             label = "LSTM Continuation" if not gen_labeled else None
             gen_labeled = True
 
+        # Outer glow halo
+        ax.barh(
+            y=pitch,
+            width=dur + 0.08,
+            left=max(0, start - 0.04),
+            height=0.92,
+            color=glow_color,
+            alpha=0.32,
+            edgecolor="none",
+            zorder=3,
+        )
+        # Inner vibrant core note
         ax.barh(
             y=pitch,
             width=dur,
             left=start,
-            height=0.8,
-            color=color,
-            edgecolor=edgecolor,
-            alpha=0.9,
-            linewidth=0.8,
+            height=0.76,
+            color=core_color,
+            edgecolor=edge_color,
+            linewidth=0.9,
+            alpha=0.95,
             label=label,
+            zorder=4,
         )
 
-    ax.set_title(title, color="#f8fafc", fontsize=11, fontweight="bold", pad=10)
-    ax.set_xlabel("Time (seconds)", color="#94a3b8", fontsize=10)
-    ax.set_ylabel("MIDI Pitch (0-127)", color="#94a3b8", fontsize=10)
-    ax.tick_params(colors="#94a3b8")
-    for spine in ax.spines.values():
-        spine.set_color("#1e293b")
-    ax.grid(True, linestyle="--", alpha=0.18, color="#334155")
-
-    # Set pitch bounds
-    pitches = [n["pitch"] for n in notes]
-    min_p = max(0, min(pitches) - 3)
-    max_p = min(127, max(pitches) + 3)
-    ax.set_ylim(min_p, max_p)
-
-    max_time = max(n["start"] + n["duration"] for n in notes) + 0.5
+    ax.set_ylim(min_p - 0.5, max_p + 0.5)
     ax.set_xlim(0, max_time)
 
     # Reference Middle C (60)
-    ax.axhline(60, color="#64748b", linestyle=":", alpha=0.5, label="Middle C (60)")
-    ax.legend(loc="upper right", facecolor="#070913", edgecolor="#1e293b", labelcolor="#cbd5e1", fontsize=8)
+    ax.axhline(60, color="#64748b", linestyle=":", linewidth=1.1, alpha=0.6, label="Middle C (60)", zorder=2)
+
+    # Pitch Ticks with Note Names
+    step = 4 if (max_p - min_p) > 20 else 2
+    yticks = [p for p in range(int(min_p), int(max_p) + 1) if p % step == 0 or p == 60]
+    ytick_labels = [f"{PITCH_NAMES[p%12]}{(p//12)-1} ({p})" for p in yticks]
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(ytick_labels, fontsize=8, color="#94a3b8")
+
+    ax.set_title(title, color="#f8fafc", fontsize=11, fontweight="bold", pad=28)
+    ax.set_xlabel("Time (seconds)", color="#94a3b8", fontsize=9.5)
+    ax.set_ylabel("Musical Pitch (Key / MIDI)", color="#94a3b8", fontsize=9.5)
+    ax.tick_params(colors="#94a3b8")
+    for spine in ax.spines.values():
+        spine.set_color("#1e293b")
+    ax.grid(True, linestyle=":", alpha=0.22, color="#00f0ff", zorder=1)
+
+    # Legend above plot
+    ax.legend(
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.02),
+        ncol=3,
+        frameon=True,
+        facecolor="#070913",
+        edgecolor="#1e293b",
+        labelcolor="#cbd5e1",
+        fontsize=8,
+    )
 
     plt.tight_layout()
     return fig
@@ -621,7 +709,7 @@ def main():
             cmeta = st.session_state.cond_meta
 
             st.markdown("---")
-            st.subheader("🎹 Generated Conditional Piece")
+            st.markdown(render_piano_roll_header("Generated Conditional Piece", f"MOOD: {cmeta['conditions']['mood'].upper()} &bull; REGISTER: {cmeta['conditions']['register'].upper()}"), unsafe_allow_html=True)
 
             # Piano Roll Plot
             fig_cond = plot_conditional_piano_roll(cnotes, title=f"MelodyLoop 2.0 — {cmeta['conditions']['mood'].title()} | {cmeta['conditions']['register'].title()} Register | {cmeta['conditions']['dynamics'].title()} Dynamics")
@@ -825,7 +913,7 @@ def main():
                     key="dl_wav_gen",
                 )
 
-            st.subheader("🎹 Piano-Roll Visualization")
+            st.markdown(render_piano_roll_header("Piano-Roll Visualization", "AUTOREGRESSIVE CONTINUATION &bull; NOTE EVENTS"), unsafe_allow_html=True)
             fig = plot_piano_roll(notes, title="LSTM Generated Melody")
             st.pyplot(fig)
 

@@ -455,6 +455,21 @@ audio:hover {
     box-shadow: 0 0 25px rgba(0, 240, 255, 0.55), 0 0 45px rgba(176, 38, 255, 0.3) !important;
 }
 
+
+/* Streamlit Pyplot Frame Enhancement */
+div[data-testid="stPyplot"] {
+    background: rgba(10, 14, 28, 0.75) !important;
+    border: 1px solid rgba(0, 240, 255, 0.28) !important;
+    border-radius: 14px !important;
+    padding: 10px 14px 6px 14px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 240, 255, 0.12) !important;
+    transition: all 0.3s ease !important;
+}
+div[data-testid="stPyplot"]:hover {
+    border-color: rgba(0, 240, 255, 0.5) !important;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 240, 255, 0.22) !important;
+}
+
 /* WebKit media controls styling (Chrome, Brave, Edge) */
 audio::-webkit-media-controls-panel {
     background: linear-gradient(135deg, rgba(9, 13, 31, 0.98) 0%, rgba(18, 24, 52, 0.95) 100%) !important;
@@ -620,6 +635,21 @@ def render_audio_player_header(title: str = "Audio Playback", subtitle: str = "V
         <span>{title.upper()}</span>
     </div>
     <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #94a3b8; background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.22); border-radius: 12px; padding: 2px 8px;">
+        {subtitle}
+    </div>
+</div>
+"""
+
+
+def render_piano_roll_header(title: str = "Digital Piano-Roll Visualizer", subtitle: str = "CHROMATIC SPECTRUM &bull; VELOCITY GLOW") -> str:
+    """Render a futuristic piano roll display header."""
+    return f"""
+<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px; margin-bottom: 8px;">
+    <div style="font-family: 'Orbitron', sans-serif; font-size: 0.88rem; font-weight: 700; letter-spacing: 1px; color: #00f0ff; display: inline-flex; align-items: center; gap: 8px; text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);">
+        <span style="color: #b026ff;">◆</span>
+        <span>{title.upper()}</span>
+    </div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #94a3b8; background: rgba(176, 38, 255, 0.1); border: 1px solid rgba(176, 38, 255, 0.28); border-radius: 12px; padding: 2px 8px;">
         {subtitle}
     </div>
 </div>
