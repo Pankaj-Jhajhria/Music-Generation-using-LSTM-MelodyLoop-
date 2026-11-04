@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="460" viewBox="0 0 1440 460" role="img" aria-labelledby="title desc">
+  <title id="title">MelodyLoop — LSTM music generation</title>
+  <desc id="desc">A luminous piano roll flowing into a neural network and musical notes.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#070b22"/><stop offset=".55" stop-color="#101c4d"/><stop offset="1" stop-color="#23114a"/></linearGradient>
+    <linearGradient id="wave" x1="0" x2="1"><stop stop-color="#22d3ee"/><stop offset=".5" stop-color="#7c6cff"/><stop offset="1" stop-color="#f472b6"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#90a4ff" stroke-opacity=".1"/></pattern>
+  </defs>
+  <rect width="1440" height="460" rx="28" fill="url(#bg)"/>
+  <rect width="1440" height="460" rx="28" fill="url(#grid)"/>
+  <circle cx="1140" cy="75" r="180" fill="#5b5bd6" opacity=".16"/><circle cx="215" cy="400" r="150" fill="#00d9ff" opacity=".1"/>
+  <g opacity=".9" filter="url(#glow)"><path d="M95 330 C180 330 175 215 265 215 S350 350 440 350 S535 145 630 145 S720 292 815 292 S915 185 1005 185 S1110 330 1210 245 S1300 155 1370 155" fill="none" stroke="url(#wave)" stroke-width="6" stroke-linecap="round"/><circle cx="265" cy="215" r="9" fill="#67e8f9"/><circle cx="630" cy="145" r="9" fill="#a5b4fc"/><circle cx="1005" cy="185" r="9" fill="#f9a8d4"/></g>
+  <g transform="translate(945 260)" fill="#dbeafe" opacity=".9"><path d="M0 0h23v-60H0zM31 0h23v-86H31zM62 0h23v-42H62zM93 0h23v-74H93zM124 0h23v-52H124zM155 0h23v-96H155zM186 0h23v-65H186zM217 0h23v-37H217zM248 0h23v-82H248zM279 0h23v-55H279zM310 0h23v-100H310z"/><path d="M-10 5h365v16H-10z" fill="#7c6cff"/></g>
+  <g transform="translate(105 84)"><text fill="#67e8f9" font-family="Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="5">SEQUENTIAL MUSIC INTELLIGENCE</text><text y="72" fill="#fff" font-family="Arial, sans-serif" font-size="64" font-weight="800">MelodyLoop</text><text y="112" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="25">Conditional piano melody generation with PyTorch LSTMs</text><g transform="translate(0 150)"><rect width="152" height="39" rx="19.5" fill="#152a5c" stroke="#22d3ee" stroke-opacity=".75"/><text x="76" y="26" text-anchor="middle" fill="#cffafe" font-family="Arial, sans-serif" font-size="16" font-weight="700">PYTORCH</text><rect x="166" width="152" height="39" rx="19.5" fill="#24184d" stroke="#a78bfa" stroke-opacity=".75"/><text x="242" y="26" text-anchor="middle" fill="#ede9fe" font-family="Arial, sans-serif" font-size="16" font-weight="700">STREAMLIT</text></g></g>
+</svg>

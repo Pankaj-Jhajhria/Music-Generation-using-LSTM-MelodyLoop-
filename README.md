@@ -1,12 +1,30 @@
+<p align="center">
+  <img src="assets/readme/melodyloop-banner.svg" alt="MelodyLoop — conditional piano melody generation with PyTorch LSTMs" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://music-generation-lstm.streamlit.app/"><img src="assets/readme/live-demo-button.svg" alt="Launch the live MelodyLoop demo" width="260"></a>
+  <a href="https://github.com/Pankaj-Jhajhria/Music-Generation-using-LSTM-MelodyLoop-"><img src="assets/readme/explore-code-button.svg" alt="Explore the MelodyLoop source code" width="260"></a>
+</p>
+
+<p align="center">
+  A condition-aware piano-melody generator trained from scratch with PyTorch LSTMs.
+</p>
+
+<p align="center"><img src="assets/readme/divider.svg" alt="" width="100%"></p>
+
 # MelodyLoop: Music Generation Using an LSTM
 
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-CUDA_12.6-EE4C2C.svg)](https://pytorch.org/)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/Dataset_License-CC_BY--NC--SA_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Streamlit-06B6D4?logo=streamlit&logoColor=white)](https://music-generation-lstm.streamlit.app/)
 
 **MelodyLoop** is a complete, lightweight, locally running educational project that demonstrates how a custom **Long Short-Term Memory (LSTM)** neural network learns sequential musical patterns from classical piano performances and autoregressively generates new melodies.
 
 > **Project Scope**: This project is built specifically for educational demonstration and sequential pattern analysis. The LSTM is trained **completely from scratch** without pretrained generative checkpoints. The training data comes from the MAESTRO piano dataset, so generated outputs are **LSTM-generated piano-note sequences**.
+
+> **Live app**: Try the deployed Streamlit interface at [music-generation-lstm.streamlit.app](https://music-generation-lstm.streamlit.app/).
 
 ---
 
