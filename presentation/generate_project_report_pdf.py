@@ -1,22 +1,9 @@
 """
-MelodyLoop 2.0: Official Academic Project Report Generator
-Compiles a formal, university-grade Capstone / Major Project Thesis Report:
-  'docs/MelodyLoop_Project_Report.pdf'
-
-Structure:
-- Title Page (Institutional Academic Format)
-- Certificate of Authenticity & Candidate Declaration
-- Acknowledgements
-- Abstract & Keywords
-- Chapter 1: Introduction & Problem Definition
-- Chapter 2: Literature Review & Theoretical Foundations
-- Chapter 3: System Architecture & Mathematical Modeling
-- Chapter 4: Dataset Engineering & Anti-Leakage Methodology
-- Chapter 5: Detailed Implementation & Conditioning Pathway
-- Chapter 6: Experimental Setup, Results & Evaluation Discussion
-- Chapter 7: System Deployment & Software Engineering
-- Chapter 8: Conclusion & Future Scope
-- References (IEEE Academic Format)
+MelodyLoop 2.0: Project Report Generator
+Clean Minimal Cover + Direct Introduction
+- First page: Just the Project Name & 2 Clickable Links (GitHub & Streamlit App)
+- Directly starts from Chapter 1: Introduction (no certificate, no acknowledgements, no author/college metadata)
+- Complete technical report content: Chapters 1 to 8 + IEEE References + All Figures & Tables
 """
 
 import os
@@ -60,17 +47,17 @@ PRIMARY_DARK = colors.HexColor("#0f172a")     # Slate 900
 NAVY_HEADER = colors.HexColor("#1e3a8a")      # Blue 900
 ACCENT_BLUE = colors.HexColor("#2563eb")      # Blue 600
 TEXT_MAIN = colors.HexColor("#1e293b")        # Slate 800
-TEXT_MUTED = colors.HexColor("#475569")       # Slate 600
+TEXT_MUTED = colors.HexColor("#64748b")       # Slate 500
 BORDER_LIGHT = colors.HexColor("#cbd5e1")     # Slate 300
 BG_PANEL = colors.HexColor("#f8fafc")         # Slate 50
 BG_CODE = colors.HexColor("#f1f5f9")          # Slate 100
 
 
-class AcademicNumberedCanvas(canvas.Canvas):
+class CleanNumberedCanvas(canvas.Canvas):
     """
-    Two-pass canvas for academic report styling:
-    Suppresses headers and footers on front-matter pages (Title, Certificate, Ack),
-    and renders formal running headers and page numbers on chapter pages.
+    Two-pass canvas:
+    - Suppresses header and footer on Page 1 (Cover Page).
+    - Page 2 onwards: Clean running header and page numbering without personal/college info.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -89,8 +76,8 @@ class AcademicNumberedCanvas(canvas.Canvas):
         super().save()
 
     def draw_page_decorations(self, page_count):
-        # Front matter pages: 1 (Title), 2 (Certificate), 3 (Acknowledgements)
-        if self._pageNumber <= 3:
+        # Do not draw on Cover Page (Page 1)
+        if self._pageNumber == 1:
             return
 
         self.saveState()
@@ -98,16 +85,16 @@ class AcademicNumberedCanvas(canvas.Canvas):
         self.setFillColor(TEXT_MUTED)
 
         # Running Header
-        self.drawString(54, 748, "MelodyLoop 2.0: Condition-Aware Symbolic Music Generation")
-        self.drawRightString(558, 748, "Institutional Project Report")
+        self.drawString(54, 748, "MelodyLoop 2.0: Condition-Aware Symbolic Music Generation Using LSTM")
+        self.drawRightString(558, 748, "Project Report")
 
         # Header rule
         self.setStrokeColor(BORDER_LIGHT)
         self.setLineWidth(0.6)
         self.line(54, 742, 558, 742)
 
-        # Running Footer
-        self.drawString(54, 38, "Department of Computer Science & Engineering")
+        # Running Footer (clean, no college / student personal info)
+        self.drawString(54, 38, "Symbolic Music Generation System")
         self.drawRightString(558, 38, f"Page {self._pageNumber} of {page_count}")
 
         # Footer rule
@@ -119,23 +106,43 @@ def get_academic_stylesheet():
     styles = getSampleStyleSheet()
 
     styles.add(ParagraphStyle(
-        "AcademicTitle",
+        "CoverMainTitle",
         fontName="Helvetica-Bold",
-        fontSize=22,
-        leading=28,
+        fontSize=28,
+        leading=34,
         textColor=PRIMARY_DARK,
         alignment=TA_CENTER,
-        spaceAfter=12,
+        spaceAfter=14,
     ))
 
     styles.add(ParagraphStyle(
-        "AcademicSubtitle",
+        "CoverSubTitle",
         fontName="Helvetica",
-        fontSize=12,
-        leading=16,
+        fontSize=13,
+        leading=18,
         textColor=NAVY_HEADER,
         alignment=TA_CENTER,
-        spaceAfter=20,
+        spaceAfter=25,
+    ))
+
+    styles.add(ParagraphStyle(
+        "CoverLinkLabel",
+        fontName="Helvetica-Bold",
+        fontSize=10,
+        leading=15,
+        textColor=PRIMARY_DARK,
+        alignment=TA_CENTER,
+        spaceAfter=4,
+    ))
+
+    styles.add(ParagraphStyle(
+        "CoverLinkUrl",
+        fontName="Helvetica",
+        fontSize=9.5,
+        leading=14,
+        textColor=ACCENT_BLUE,
+        alignment=TA_CENTER,
+        spaceAfter=14,
     ))
 
     styles.add(ParagraphStyle(
@@ -144,7 +151,7 @@ def get_academic_stylesheet():
         fontSize=16,
         leading=20,
         textColor=NAVY_HEADER,
-        spaceBefore=18,
+        spaceBefore=16,
         spaceAfter=8,
         keepWithNext=True,
     ))
@@ -236,24 +243,6 @@ def get_academic_stylesheet():
         textColor=TEXT_MAIN,
     ))
 
-    styles.add(ParagraphStyle(
-        "TableCellCenter",
-        fontName="Helvetica",
-        fontSize=8.0,
-        leading=10.5,
-        textColor=TEXT_MAIN,
-        alignment=TA_CENTER,
-    ))
-
-    styles.add(ParagraphStyle(
-        "FrontMatterCenter",
-        fontName="Helvetica",
-        fontSize=9.5,
-        leading=14.0,
-        textColor=TEXT_MAIN,
-        alignment=TA_CENTER,
-    ))
-
     return styles
 
 
@@ -315,141 +304,33 @@ def embed_table(data, col_widths, styles=None, is_header_present=True):
 
 
 # ------------------------------------------------------------------------------
-# Report Sections
+# Document Pages
 # ------------------------------------------------------------------------------
-def build_title_page(story, styles):
-    story.append(Spacer(1, 35))
-    story.append(Paragraph("A PROJECT REPORT ON", ParagraphStyle(
-        "SubHeader", fontName="Helvetica-Bold", fontSize=10, leading=14, textColor=TEXT_MUTED, alignment=TA_CENTER
-    )))
+def build_first_page(story, styles):
+    """
+    First page: Just the project name and the two clickable links (GitHub and Streamlit).
+    No author name, no college, no extra metadata.
+    """
+    story.append(Spacer(1, 190))
+    story.append(Paragraph("MELODYLOOP 2.0", styles["CoverMainTitle"]))
+    story.append(Paragraph("Condition-Aware and Prompt-Based Music Generation Using Long Short-Term Memory Networks", styles["CoverSubTitle"]))
+    story.append(HRFlowable(width="50%", thickness=2, color=NAVY_HEADER, spaceAfter=45, hAlign="CENTER"))
+
+    # Clickable Link 1: GitHub Repository
+    github_url = "https://github.com/Pankaj-Jhajhria/Music-Generation-using-LSTM-MelodyLoop-"
+    github_link_html = f'<a href="{github_url}" color="#2563eb"><u>{github_url}</u></a>'
+    story.append(Paragraph("<b>GitHub Repository:</b>", styles["CoverLinkLabel"]))
+    story.append(Paragraph(github_link_html, styles["CoverLinkUrl"]))
+
     story.append(Spacer(1, 10))
 
-    story.append(Paragraph("MELODYLOOP 2.0: CONDITION-AWARE AND PROMPT-BASED MUSIC GENERATION USING LONG SHORT-TERM MEMORY NETWORKS", styles["AcademicTitle"]))
-    story.append(HRFlowable(width="60%", thickness=2, color=NAVY_HEADER, spaceAfter=20, hAlign="CENTER"))
+    # Clickable Link 2: Live Streamlit Application
+    streamlit_url = "https://music-generation-lstm.streamlit.app"
+    streamlit_link_html = f'<a href="{streamlit_url}" color="#2563eb"><u>{streamlit_url}</u></a>'
+    story.append(Paragraph("<b>Live Streamlit Web Application:</b>", styles["CoverLinkLabel"]))
+    story.append(Paragraph(streamlit_link_html, styles["CoverLinkUrl"]))
 
-    story.append(Paragraph(
-        "Submitted in partial fulfillment of the requirements for the award of the degree of<br/>"
-        "<b>BACHELOR OF TECHNOLOGY / MASTER OF SCIENCE</b><br/>in<br/>"
-        "<b>COMPUTER SCIENCE & ENGINEERING / ARTIFICIAL INTELLIGENCE</b>",
-        styles["FrontMatterCenter"]
-    ))
-    story.append(Spacer(1, 45))
-
-    details_table = [
-        ["Submitted By:", "Project Supervision & Context:"],
-        ["<b>Pankaj Jhajhria</b>", "<b>Department of Computer Science & Engineering</b>"],
-        ["Candidate Enrollment No: AI-NLP-2026", "Course: Natural Language Processing & Symbolic AI"],
-        ["Repository: Pankaj-Jhajhria/MelodyLoop", "Academic Year: 2026 – 2027"],
-    ]
-    t = Table(details_table, colWidths=[240, 264])
-    t.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("LEADING", (0, 0), (-1, -1), 13),
-        ("TEXTCOLOR", (0, 0), (-1, -1), TEXT_MAIN),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-    ]))
-    story.append(t)
-    story.append(Spacer(1, 60))
-
-    story.append(Paragraph("<b>DEPARTMENT OF COMPUTER SCIENCE & ENGINEERING</b><br/>INSTITUTE OF TECHNOLOGY<br/>NOVEMBER 2026", styles["FrontMatterCenter"]))
-    story.append(PageBreak())
-
-
-def build_certificates_and_ack(story, styles):
-    # -------------------------------------------------------------
-    # Certificate of Authenticity
-    # -------------------------------------------------------------
-    story.append(Spacer(1, 20))
-    story.append(Paragraph("CERTIFICATE OF AUTHENTICITY", ParagraphStyle(
-        "CertHeading", fontName="Helvetica-Bold", fontSize=14, leading=18, textColor=PRIMARY_DARK, alignment=TA_CENTER
-    )))
-    story.append(HRFlowable(width="40%", thickness=1.5, color=NAVY_HEADER, spaceAfter=25, hAlign="CENTER"))
-
-    cert_text = (
-        "This is to certify that the project entitled <b>'MelodyLoop 2.0: Condition-Aware and Prompt-Based Music Generation "
-        "Using Long Short-Term Memory Networks'</b> submitted by <b>Pankaj Jhajhria</b> in partial fulfillment of the academic "
-        "curriculum is a bonafide record of independent engineering and research work carried out under proper guidance.<br/><br/>"
-        "The results embodied in this report have been verified against original codebase implementations, mathematical formulations, "
-        "and empirical checkpoints, and have not been submitted elsewhere for the award of any other degree or diploma."
-    )
-    story.append(Paragraph(cert_text, styles["ReportBody"]))
-    story.append(Spacer(1, 65))
-
-    sig_table = [
-        ["___________________________", "___________________________"],
-        ["<b>Pankaj Jhajhria</b>", "<b>Project Supervisor / Faculty Advisor</b>"],
-        ["Candidate Signature", "Department of Computer Science & Engineering"],
-    ]
-    t_sig = Table(sig_table, colWidths=[250, 254])
-    t_sig.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("LEADING", (0, 0), (-1, -1), 13),
-        ("TEXTCOLOR", (0, 0), (-1, -1), TEXT_MAIN),
-    ]))
-    story.append(t_sig)
-    story.append(Spacer(1, 35))
-
-    # -------------------------------------------------------------
-    # Acknowledgements
-    # -------------------------------------------------------------
-    story.append(Paragraph("ACKNOWLEDGEMENTS", ParagraphStyle(
-        "AckHeading", fontName="Helvetica-Bold", fontSize=13, leading=17, textColor=PRIMARY_DARK, alignment=TA_CENTER
-    )))
-    story.append(HRFlowable(width="30%", thickness=1, color=NAVY_HEADER, spaceAfter=15, hAlign="CENTER"))
-
-    ack_text = (
-        "I express my deepest gratitude to my course instructor and project advisor for their invaluable direction, "
-        "rigorous critique, and continuous technical encouragement throughout the evolution of this project. Their insistence "
-        "on genuine machine learning—mandating that musical conditions mathematically govern recurrent probability transitions "
-        "rather than relying on post-hoc superficial transformations—served as the cornerstone for MelodyLoop 2.0.<br/><br/>"
-        "I also extend appreciation to the open-source audio research community, specifically Google Magenta for providing the "
-        "MAESTRO dataset and the AMAAI Lab at SUTD for curating the MidiCaps benchmark. Finally, I thank my peers and family for "
-        "their steadfast support during model training, evaluation, and documentation."
-    )
-    story.append(Paragraph(ack_text, styles["ReportBody"]))
-    story.append(PageBreak())
-
-
-def build_abstract_and_toc(story, styles):
-    story.append(Paragraph("ABSTRACT", ParagraphStyle(
-        "AbsHeading", fontName="Helvetica-Bold", fontSize=14, leading=18, textColor=PRIMARY_DARK, alignment=TA_CENTER
-    )))
-    story.append(HRFlowable(width="30%", thickness=1.5, color=NAVY_HEADER, spaceAfter=15, hAlign="CENTER"))
-
-    abs_p1 = (
-        "Autonomous musical composition using deep artificial neural networks represents an active research frontier at the intersection "
-        "of Natural Language Processing, sequential modeling, and symbolic audio computing. While baseline autoregressive models "
-        "(such as MelodyLoop 1.0) successfully model statistical pitch and rhythmic transitions from classical corpora, they lack "
-        "<b>controllability</b>: users cannot steer the generated music toward specific emotional expressions, tempo brackets, pitch registers, "
-        "or dynamic intensities. Furthermore, contemporary commercial generative solutions rely on multi-billion parameter transformer models "
-        "or black-box commercial APIs that lack explainability, prohibit local consumer-hardware execution, and detach symbolic notation from synthesis."
-    )
-    story.append(Paragraph(abs_p1, styles["ReportBody"]))
-
-    abs_p2 = (
-        "To resolve these foundational challenges, this report presents <b>MelodyLoop 2.0</b>—a condition-aware, multi-task Long Short-Term Memory (LSTM) "
-        "symbolic music generation framework. Note events are discretized into a 4-tuple sequence representation spanning Pitch (128 tokens), "
-        "Duration (32 non-linear logarithmic bins), Inter-Onset Step (32 bins), and Velocity (32 bins). User-selected attributes or natural language text prompts "
-        "(e.g., <i>'Generate a calm, slow piano melody with soft dynamics in a low register'</i>) are parsed by a rule-based inference module into a structured "
-        "4-dimensional condition vector. These condition embeddings are projected directly into the initial hidden state (<i>h<sub>0</sub></i>) and cell state (<i>c<sub>0</sub></i>) "
-        "of the recurrent network, priming the internal memory before the first musical token is sampled."
-    )
-    story.append(Paragraph(abs_p2, styles["ReportBody"]))
-
-    abs_p3 = (
-        "The model was trained from scratch without pretrained weights on a strictly isolated 14,134-piece solo piano partition of the MidiCaps dataset. "
-        "Under laptop GPU constraints (NVIDIA RTX 3050, 4 GB VRAM), the resulting 198,880-parameter network converges smoothly and achieves 90% to 100% "
-        "empirical adherence across pitch register and dynamic targets. The system is deployed via an interactive Streamlit application featuring a "
-        "Cyber Synthwave aesthetic, a dual-layer neon piano-roll visualizer, and an additive harmonic piano synthesis engine rendering 44.1 kHz 16-bit stereo audio in real-time."
-    )
-    story.append(Paragraph(abs_p3, styles["ReportBody"]))
-    story.append(Spacer(1, 8))
-
-    story.append(Paragraph("<b>Keywords:</b> Symbolic Music Generation, Long Short-Term Memory (LSTM), Condition-Aware Recurrent Networks, Natural Language Prompt Parsing, MidiCaps, Discrete Event Quantization, Additive Harmonic Synthesis.", styles["ReportBodyBold"]))
+    # Break to Page 2 to start directly from Chapter 1: Introduction
     story.append(PageBreak())
 
 
@@ -467,11 +348,11 @@ def build_chapter_1(story, styles):
         styles["ReportBody"]
     ))
     story.append(Paragraph(
-        "In our baseline system (MelodyLoop 1.0), a custom multi-task PyTorch LSTM was trained on classical piano performances from the MAESTRO dataset. "
-        "While MelodyLoop 1.0 demonstrated that recurrent networks can discover chord progressions and melodic continuation from scratch, it operated "
+        "In the baseline MelodyLoop system, a multi-task Long Short-Term Memory (LSTM) network was trained on classical piano performances from the MAESTRO dataset. "
+        "While the baseline model demonstrated that recurrent networks can discover chord progressions and melodic continuation from scratch, it operated "
         "purely unconditionally. A user had no capability to direct the generated music toward a contemplative, slow character versus an energetic, rapid texture. "
-        "This project was undertaken to upgrade MelodyLoop into a genuine condition-based generation system, satisfying institutional and educational machine "
-        "learning standards.",
+        "MelodyLoop 2.0 was developed to upgrade the baseline into a genuine condition-based generation system, allowing expressive musical steering through "
+        "both manual parameter controls and natural language text prompts.",
         styles["ReportBody"]
     ))
 
@@ -479,7 +360,7 @@ def build_chapter_1(story, styles):
     story.append(Paragraph(
         "The core objective of this project is to develop an explainable, end-to-end symbolic music generation system that satisfies the following criteria: "
         "<br/>1. <b>Condition-Aware Sequence Generation:</b> The network must accept musical conditions (mood, tempo, pitch register, dynamics) and directly modulate its internal recurrent state, producing verifiable shifts in generated note distributions. "
-        "<br/>2. <b>Dual Specification Interfaces:</b> The system must provide equivalent steering through structured manual controls and natural language text prompts. "
+        "<br/>2. <b>Dual Specification Modalities:</b> The system must provide equivalent steering through structured manual controls and natural language text prompts. "
         "<br/>3. <b>Zero Pretrained Weights:</b> All embeddings, recurrent transition weights, and output projection heads must be trained from scratch without relying on external pretrained language or music models. "
         "<br/>4. <b>Consumer Hardware Feasibility:</b> Training and inference must operate reliably within a 4 GB VRAM budget on a consumer laptop GPU. "
         "<br/>5. <b>Zero-Dependency Audio Rendering:</b> Generated symbolic events must be synthesized into high-fidelity stereo audio locally without requiring external binary SoundFont daemons.",
@@ -488,8 +369,8 @@ def build_chapter_1(story, styles):
 
     story.append(Paragraph("1.3 Report Organization", styles["SectionHeading"]))
     story.append(Paragraph(
-        "This technical report is organized into eight formal chapters: Chapter 2 reviews relevant literature and theoretical foundations. "
-        "Chapter 3 establishes the mathematical formulation of discrete event sequences and recurrent state projection. Chapter 4 presents dataset "
+        "This report is organized as follows: Chapter 2 reviews literature and theoretical foundations. "
+        "Chapter 3 establishes the mathematical modeling of discrete event sequences and recurrent state projection. Chapter 4 presents dataset "
         "engineering, streaming audits, and anti-leakage partitioning. Chapter 5 details the software implementation, neural architecture, and prompt parser. "
         "Chapter 6 evaluates experimental results, loss convergence, and quantitative condition adherence. Chapter 7 outlines cloud deployment and software engineering "
         "fixes, and Chapter 8 concludes the report with future research horizons.",
@@ -832,7 +713,7 @@ def build_chapter_8_and_references(story, styles):
 # ------------------------------------------------------------------------------
 def generate_project_report_pdf():
     print("=" * 72)
-    print("Building MelodyLoop 2.0 Official Academic Project Report PDF")
+    print("Building MelodyLoop 2.0 Clean Academic Project Report PDF")
     print(f"Destination: {PDF_OUTPUT_PATH.resolve()}")
     print("=" * 72)
 
@@ -850,16 +731,10 @@ def generate_project_report_pdf():
 
     story = []
 
-    print("-> Adding Formal Institutional Title Page...")
-    build_title_page(story, styles)
+    print("-> Adding Minimalist First Page (Title + 2 Clickable Links)...")
+    build_first_page(story, styles)
 
-    print("-> Adding Certificate of Authenticity & Acknowledgements...")
-    build_certificates_and_ack(story, styles)
-
-    print("-> Adding Abstract & Keywords...")
-    build_abstract_and_toc(story, styles)
-
-    print("-> Adding Chapter 1: Introduction...")
+    print("-> Starting Directly from Chapter 1: Introduction...")
     build_chapter_1(story, styles)
 
     print("-> Adding Chapter 2: Literature Review & Theoretical Foundations...")
@@ -884,14 +759,14 @@ def generate_project_report_pdf():
     build_chapter_8_and_references(story, styles)
 
     print(f"Total flowables assembled: {len(story)}")
-    print("Rendering two-pass academic PDF with AcademicNumberedCanvas...")
+    print("Rendering two-pass academic PDF with CleanNumberedCanvas...")
 
-    doc.build(story, canvasmaker=AcademicNumberedCanvas)
+    doc.build(story, canvasmaker=CleanNumberedCanvas)
 
     elapsed = time.time() - t0
     size_mb = PDF_OUTPUT_PATH.stat().st_size / (1024 * 1024)
     print("=" * 72)
-    print(f"SUCCESS: Official Project Report generated in {elapsed:.2f} seconds!")
+    print(f"SUCCESS: Clean Project Report generated in {elapsed:.2f} seconds!")
     print(f"File Path: {PDF_OUTPUT_PATH.resolve()}")
     print(f"File Size: {size_mb:.2f} MB ({PDF_OUTPUT_PATH.stat().st_size:,} bytes)")
     print("=" * 72)
